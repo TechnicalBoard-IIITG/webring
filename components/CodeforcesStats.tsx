@@ -30,7 +30,7 @@ export default function CodeforcesStats({ handle }: CodeforcesStatsProps) {
 
   if (loading || !data) {
     return (
-      <div className="size-[120px] animate-pulse rounded-full border border-[#2B3A52] bg-[#1A2233]" />
+      <div className="h-[88px] w-[120px] animate-pulse rounded border border-[#2B3A52] bg-[#1A2233]" />
     );
   }
 
@@ -38,23 +38,20 @@ export default function CodeforcesStats({ handle }: CodeforcesStatsProps) {
   const rankLabel = data.rank ? titleCase(data.rank) : "Unrated";
 
   return (
-    <div className="flex w-[120px] flex-col items-center border border-[#2B3A52] bg-[#1A2233] px-2 py-3 text-center font-mono">
-      <p className="text-[9px] uppercase tracking-[0.16em] text-[#6E7F9E]">
-        Codeforces
+    <div className="flex h-[88px] w-[120px] flex-col items-center justify-center border border-[#2B3A52] bg-[#1A2233] px-2 text-center font-mono">
+      <p className="text-[8px] uppercase tracking-[0.14em] text-[#6E7F9E]">
+        Rating
       </p>
 
-      <p
-        className="mt-1 text-2xl font-bold leading-none"
-        style={{ color }}
-      >
+      <p className="mt-0.5 text-xl font-bold leading-none" style={{ color }}>
         {data.rating ?? "—"}
       </p>
 
-      <p className="mt-1 text-[11px] leading-tight" style={{ color }}>
+      <p className="mt-1 text-[10px] leading-tight" style={{ color }}>
         {rankLabel}
       </p>
 
-      <p className="mt-1 text-[10px] text-[#6E7F9E]">
+      <p className="mt-0.5 text-[9px] leading-tight text-[#6E7F9E]">
         {data.maxRating ? `max ${data.maxRating}` : "no rating yet"}
       </p>
     </div>

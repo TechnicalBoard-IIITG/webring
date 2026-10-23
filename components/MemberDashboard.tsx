@@ -18,6 +18,12 @@ import LeetCodeRing from "@/components/LeetCodeRing";
 import backgrounds from "@/data/backgrounds.json";
 
 type ActivityTab = "github" | "leetcode" | "codeforces";
+type StatsTab = "leetcode" | "codeforces";
+
+interface TabOption<T extends string> {
+  id: T;
+  label: string;
+}
 
 interface MemberDashboardProps {
   member: Member;
@@ -58,11 +64,56 @@ function HeaderLink({
   );
 }
 
+function TabList<T extends string>({
+  tabs,
+  active,
+  onChange,
+  compact = false,
+}: {
+  tabs: ReadonlyArray<TabOption<T>>;
+  active: T;
+  onChange: (id: T) => void;
+  compact?: boolean;
+}) {
+  return (
+    <div
+      className={`flex flex-wrap items-center ${
+        compact ? "justify-center gap-1.5" : "gap-2"
+      }`}
+    >
+      {tabs.map((tab, index) => (
+        <Fragment key={tab.id}>
+          {index > 0 ? (
+            <span className="text-[#3A4663]" aria-hidden>
+              |
+            </span>
+          ) : null}
+
+          <button
+            onClick={() => onChange(tab.id)}
+            aria-pressed={active === tab.id}
+            className={`cursor-pointer font-mono font-semibold transition-colors ${
+              compact ? "text-[11px]" : "text-sm"
+            } ${
+              active === tab.id
+                ? "text-[#F1F5FF]"
+                : "text-[#6F7FA3] hover:text-[#9AA8C7]"
+            }`}
+          >
+            {tab.label}
+          </button>
+        </Fragment>
+      ))}
+    </div>
+  );
+}
+
 export default function MemberDashboard({
   member,
   onClose,
 }: MemberDashboardProps) {
   const [activityTab, setActivityTab] = useState<ActivityTab>("github");
+  const [statsTab, setStatsTab] = useState<StatsTab>("leetcode");
 
   const memberBackground = `/backgrounds/${member.github}.gif`;
 
@@ -86,24 +137,35 @@ export default function MemberDashboard({
     ? `https://codeforces.com/profile/${encodeURIComponent(member.codeforces)}`
     : null;
 
-  const tabs: Array<{ id: ActivityTab; label: string; available: boolean }> = [
-    { id: "github", label: "GitHub Activity", available: true },
-    {
-      id: "leetcode",
-      label: "LeetCode Activity",
-      available: Boolean(member.leetcode),
-    },
-    {
-      id: "codeforces",
-      label: "Codeforces Activity",
-      available: Boolean(member.codeforces),
-    },
+  const activityTabs: Array<TabOption<ActivityTab>> = [
+    { id: "github", label: "GitHub Activity" },
   ];
 
-  const availableTabs = tabs.filter((tab) => tab.available);
-  const activeTab = availableTabs.some((tab) => tab.id === activityTab)
+  if (member.leetcode) {
+    activityTabs.push({ id: "leetcode", label: "LeetCode Activity" });
+  }
+
+  if (member.codeforces) {
+    activityTabs.push({ id: "codeforces", label: "Codeforces Activity" });
+  }
+
+  const activeTab = activityTabs.some((tab) => tab.id === activityTab)
     ? activityTab
-    : "github";
+    : activityTabs[0].id;
+
+  const statsTabs: Array<TabOption<StatsTab>> = [];
+
+  if (member.leetcode) {
+    statsTabs.push({ id: "leetcode", label: "LeetCode" });
+  }
+
+  if (member.codeforces) {
+    statsTabs.push({ id: "codeforces", label: "Codeforces" });
+  }
+
+  const activeStatsTab = statsTabs.some((tab) => tab.id === statsTab)
+    ? statsTab
+    : (statsTabs[0]?.id ?? null);
 
   useEffect(() => {
     const image = new Image();
@@ -226,34 +288,45 @@ export default function MemberDashboard({
               </p>
             </div>
 
-            {member.leetcode && leetcodeUrl ? (
-              <a
-                href={leetcodeUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="mt-4 flex flex-col items-center text-[#9AA8C7] transition-colors hover:text-[#F1F5FF]"
-              >
-                <LeetCodeRing username={member.leetcode} />
+            {activeStatsTab ? (
+              <div className="mt-4 flex w-full flex-col items-center">
+                <TabList
+                  tabs={statsTabs}
+                  active={activeStatsTab}
+                  onChange={setStatsTab}
+                  compact
+                />
 
-                <p className="mt-2 text-center font-mono text-xs">
-                  LeetCode stats
-                </p>
-              </a>
-            ) : null}
+                <div className="mt-2 flex h-[120px] items-center justify-center">
+                  {activeStatsTab === "leetcode" &&
+                  member.leetcode &&
+                  leetcodeUrl ? (
+                    <a
+                      href={leetcodeUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      title="Open LeetCode profile"
+                      className="flex flex-col items-center transition-opacity hover:opacity-80"
+                    >
+                      <LeetCodeRing username={member.leetcode} />
+                    </a>
+                  ) : null}
 
-            {member.codeforces && codeforcesUrl ? (
-              <a
-                href={codeforcesUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="mt-4 flex flex-col items-center text-[#9AA8C7] transition-colors hover:text-[#F1F5FF]"
-              >
-                <CodeforcesStats handle={member.codeforces} />
-
-                <p className="mt-2 text-center font-mono text-xs">
-                  Codeforces rating
-                </p>
-              </a>
+                  {activeStatsTab === "codeforces" &&
+                  member.codeforces &&
+                  codeforcesUrl ? (
+                    <a
+                      href={codeforcesUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      title="Open Codeforces profile"
+                      className="flex flex-col items-center transition-opacity hover:opacity-80"
+                    >
+                      <CodeforcesStats handle={member.codeforces} />
+                    </a>
+                  ) : null}
+                </div>
+              </div>
             ) : null}
           </div>
 
@@ -273,28 +346,11 @@ export default function MemberDashboard({
               ))}
             </div>
 
-            <div className="flex flex-wrap items-center gap-2">
-              {availableTabs.map((tab, index) => (
-                <Fragment key={tab.id}>
-                  {index > 0 ? (
-                    <span className="text-[#3A4663]" aria-hidden>
-                      |
-                    </span>
-                  ) : null}
-
-                  <button
-                    onClick={() => setActivityTab(tab.id)}
-                    className={`cursor-pointer font-mono text-sm font-semibold transition-colors ${
-                      activeTab === tab.id
-                        ? "text-[#F1F5FF]"
-                        : "text-[#6F7FA3] hover:text-[#9AA8C7]"
-                    }`}
-                  >
-                    {tab.label}
-                  </button>
-                </Fragment>
-              ))}
-            </div>
+            <TabList
+              tabs={activityTabs}
+              active={activeTab}
+              onChange={setActivityTab}
+            />
 
             <div className="mt-3 min-h-[150px] min-w-0 overflow-x-auto text-[#9AA8C7]">
               {activeTab === "github" ? (
