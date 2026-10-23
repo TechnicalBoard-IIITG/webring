@@ -297,7 +297,7 @@ export default function MemberDashboard({
                   compact
                 />
 
-                <div className="mt-2 flex h-[120px] items-center justify-center">
+                <div className="mt-2 flex justify-center">
                   {activeStatsTab === "leetcode" &&
                   member.leetcode &&
                   leetcodeUrl ? (

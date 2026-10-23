@@ -1,5 +1,7 @@
 "use client";
 
+import type { CSSProperties } from "react";
+
 import { useCodeforces } from "@/hooks/useCodeforces";
 
 interface CodeforcesStatsProps {
@@ -30,7 +32,11 @@ export default function CodeforcesStats({ handle }: CodeforcesStatsProps) {
 
   if (loading || !data) {
     return (
-      <div className="h-[88px] w-[120px] animate-pulse rounded border border-[#2B3A52] bg-[#1A2233]" />
+      <div className="flex w-[80px] flex-col items-center gap-1.5">
+        <div className="h-2 w-8 animate-pulse rounded bg-[#233046]" />
+        <div className="h-5 w-12 animate-pulse rounded bg-[#233046]" />
+        <div className="h-2.5 w-10 animate-pulse rounded bg-[#233046]" />
+      </div>
     );
   }
 
@@ -38,12 +44,15 @@ export default function CodeforcesStats({ handle }: CodeforcesStatsProps) {
   const rankLabel = data.rank ? titleCase(data.rank) : "Unrated";
 
   return (
-    <div className="flex h-[88px] w-[120px] flex-col items-center justify-center border border-[#2B3A52] bg-[#1A2233] px-2 text-center font-mono">
+    <div className="flex flex-col items-center text-center font-mono">
       <p className="text-[8px] uppercase tracking-[0.14em] text-[#6E7F9E]">
         Rating
       </p>
 
-      <p className="mt-0.5 text-xl font-bold leading-none" style={{ color }}>
+      <p
+        className="rating-flow mt-0.5 text-2xl font-bold leading-none"
+        style={{ "--rating-color": color } as CSSProperties}
+      >
         {data.rating ?? "—"}
       </p>
 
