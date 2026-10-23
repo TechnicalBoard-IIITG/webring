@@ -5,8 +5,8 @@ A minimal directory of student portfolios and GitHub profiles from IIIT Guwahati
 ### Submit your profile:
 [Google Form](https://forms.gle/zp9j25Vc8pjD7zua9?utm_source=chatgpt.com)
 > [!IMPORTANT]
-> - **DO NOT PASTE YOUR FULL PROFILE LINKS**. Enter only your GitHub and LeetCode usernames.
-> - Portfolio and LeetCode fields are optional, you can leave them empty.
+> - **DO NOT PASTE YOUR FULL PROFILE LINKS**. Enter only your GitHub, LeetCode, and Codeforces usernames.
+> - Portfolio, LeetCode, and Codeforces fields are optional, you can leave them empty.
 
 ### Website:
 [IIITG Index](https://iiitg-index.vercel.app/?utm_source=chatgpt.com)

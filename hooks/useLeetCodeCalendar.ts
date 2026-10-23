@@ -2,70 +2,62 @@
 
 import { useEffect, useState } from "react";
 
-export interface LeetCodeDay {
-  date: string;
-  count: number;
+import type { ActivityDay } from "@/types/activity";
+
+export interface LeetCodeCalendarData {
+  calendar: ActivityDay[];
+  solved: number;
+  easy: number;
+  medium: number;
+  hard: number;
 }
 
-export function useLeetCodeCalendar(
-  username?: string
-) {
-  const [calendar, setCalendar] = useState<
-    LeetCodeDay[]
-  >([]);
+interface LoadedCalendar {
+  username: string;
+  data: LeetCodeCalendarData;
+}
 
-  const [loading, setLoading] =
-    useState(Boolean(username));
+export function useLeetCodeCalendar(username?: string) {
+  const [loaded, setLoaded] = useState<LoadedCalendar | null>(null);
+  const [failedFor, setFailedFor] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!username) {
-      setCalendar([]);
-      setLoading(false);
-      return;
-    }
+    if (!username) return;
 
-    let cancelled = false;
+    const controller = new AbortController();
 
-    setLoading(true);
-
-    fetch(`/api/leetcode/${username}`)
-      .then((res) => {
-        if (!res.ok) {
-          throw new Error(
-            "Failed to fetch LeetCode data"
-          );
+    fetch(`/api/leetcode/${encodeURIComponent(username)}`, {
+      signal: controller.signal,
+    })
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error("Failed to fetch LeetCode activity");
         }
 
-        return res.json();
+        return response.json() as Promise<LeetCodeCalendarData>;
       })
       .then((data) => {
-        if (!cancelled) {
-          setCalendar(data.calendar ?? []);
-        }
-      })
-      .catch((error) => {
-        console.error(
-          "LeetCode calendar error:",
-          error
-        );
+        if (controller.signal.aborted) return;
 
-        if (!cancelled) {
-          setCalendar([]);
-        }
+        setFailedFor(null);
+        setLoaded({ username, data });
       })
-      .finally(() => {
-        if (!cancelled) {
-          setLoading(false);
+      .catch(() => {
+        if (!controller.signal.aborted) {
+          setFailedFor(username);
         }
       });
 
-    return () => {
-      cancelled = true;
-    };
+    return () => controller.abort();
   }, [username]);
 
+  const data = loaded && loaded.username === username ? loaded.data : null;
+  const loading =
+    Boolean(username) && data === null && failedFor !== username;
+
   return {
-    calendar,
+    data,
     loading,
+    error: Boolean(username) && failedFor === username,
   };
 }

@@ -1,51 +1,70 @@
-import Image from "next/image";
-import type { ReactNode } from "react";
+"use client";
 
-import type { Member } from "@/types/member";
-import type { LeaderboardEntry } from "@/hooks/useLeaderboard";
+import Image from "next/image";
+import { useState, type ReactNode } from "react";
+
+import type { LeaderboardEntry } from "@/types/leaderboard";
+
+const PREVIEW_SIZE = 10;
+
+const MEDAL_COLORS: Record<number, string> = {
+  1: "#FFD54A",
+  2: "#C9D3E0",
+  3: "#D98A4B",
+};
 
 interface LeaderboardPanelProps {
   title: string;
   icon: ReactNode;
-  entries: LeaderboardEntry[];
-  members: Member[];
-  unit: string;
   accent: string;
+  metric: string;
+  windowLabel: string;
+  entries: LeaderboardEntry[];
   loading: boolean;
+  eligible: number;
+  unavailable: number;
+  emptyMessage: string;
 }
-
-const MEDALS = ["#FFD54A", "#C9D3E0", "#D98A4B"];
 
 export default function LeaderboardPanel({
   title,
   icon,
-  entries,
-  members,
-  unit,
   accent,
+  metric,
+  windowLabel,
+  entries,
   loading,
+  eligible,
+  unavailable,
+  emptyMessage,
 }: LeaderboardPanelProps) {
+  const [expanded, setExpanded] = useState(false);
+
+  const visibleEntries = expanded ? entries : entries.slice(0, PREVIEW_SIZE);
+  const allUnavailable = eligible > 0 && unavailable >= eligible;
+
   return (
-    <div className="min-w-0 flex-1 border border-[#2B3A52] bg-[#1A2233]/60 backdrop-blur-sm">
-      <div
+    <section className="flex min-w-0 flex-col border border-[#2B3A52] bg-[#1A2233]/60 backdrop-blur-sm">
+      <header
         className="flex items-center gap-2 border-b border-[#2B3A52] px-5 py-4"
         style={{ boxShadow: `inset 0 2px 0 ${accent}` }}
       >
-        <span style={{ color: accent }}>{icon}</span>
-
-        <h3 className="font-mono text-lg font-bold text-[#F1F5FF]">
-          {title}
-        </h3>
-
-        <span className="ml-auto font-mono text-xs text-[#6E7F9E]">
-          last 7 days
+        <span style={{ color: accent }} aria-hidden>
+          {icon}
         </span>
-      </div>
+
+        <h3 className="font-mono text-lg font-bold text-[#F1F5FF]">{title}</h3>
+
+        <span className="ml-auto text-right font-mono text-[11px] leading-tight text-[#6E7F9E]">
+          <span className="block">{metric}</span>
+          <span className="block">{windowLabel}</span>
+        </span>
+      </header>
 
       <div className="divide-y divide-[#2B3A52]">
         {loading &&
-          Array.from({ length: 5 }).map((_, i) => (
-            <div key={i} className="flex items-center gap-3 px-5 py-3">
+          Array.from({ length: 5 }).map((_, index) => (
+            <div key={index} className="flex items-center gap-3 px-5 py-3">
               <div className="size-5 shrink-0 animate-pulse rounded bg-[#233046]" />
               <div className="size-8 shrink-0 animate-pulse rounded-full bg-[#233046]" />
               <div className="h-4 w-32 animate-pulse rounded bg-[#233046]" />
@@ -54,61 +73,71 @@ export default function LeaderboardPanel({
 
         {!loading && entries.length === 0 && (
           <p className="px-5 py-8 text-center font-mono text-sm text-[#6E7F9E]">
-            No activity yet this week.
+            {allUnavailable ? `Couldn't reach ${title} right now.` : emptyMessage}
           </p>
         )}
 
         {!loading &&
-          entries.slice(0, 10).map((entry, index) => {
-            const member = members.find(
-              (member) => member.github === entry.github,
-            );
-
-            if (!member) return null;
-
-            const profileUrl =
-              title === "LeetCode" && member.leetcode
-                ? `https://leetcode.com/u/${member.leetcode}/`
-                : `https://github.com/${member.github}`;
-
-            return (
-              <a
-                key={member.github}
-                href={profileUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-3 px-5 py-3 transition-colors duration-150 hover:bg-[#20304a]"
+          visibleEntries.map((entry) => (
+            <a
+              key={entry.github}
+              href={entry.profileUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-3 px-5 py-3 transition-colors duration-150 hover:bg-[#20304a]"
+            >
+              <span
+                className="w-5 shrink-0 text-center font-mono text-sm font-bold"
+                style={{ color: MEDAL_COLORS[entry.rank] ?? "#6E7F9E" }}
               >
-                <span
-                  className="w-5 shrink-0 text-center font-mono text-sm font-bold"
-                  style={{ color: MEDALS[index] ?? "#6E7F9E" }}
-                >
-                  {index + 1}
+                {entry.rank}
+              </span>
+
+              <Image
+                src={`https://github.com/${entry.github}.png`}
+                alt=""
+                width={32}
+                height={32}
+                unoptimized
+                className="size-8 shrink-0 rounded-full border border-[#2B3A52] object-cover"
+              />
+
+              <span className="min-w-0 flex-1">
+                <span className="block truncate font-mono text-sm text-[#F1F5FF]">
+                  {entry.name}
                 </span>
 
-                <Image
-                  src={`https://github.com/${member.github}.png`}
-                  alt={member.name}
-                  width={32}
-                  height={32}
-                  unoptimized
-                  className="size-8 shrink-0 rounded-full border border-[#2B3A52] object-cover"
-                />
+                {entry.detail ? (
+                  <span className="block truncate font-mono text-[10px] text-[#6E7F9E]">
+                    {entry.detail}
+                  </span>
+                ) : null}
+              </span>
 
-                <span className="min-w-0 flex-1 truncate font-mono text-sm text-[#F1F5FF]">
-                  {member.name}
-                </span>
-
+              <span className="shrink-0 text-right">
                 <span
-                  className="shrink-0 font-mono text-xs font-semibold"
+                  className="block font-mono text-sm font-semibold"
                   style={{ color: accent }}
                 >
-                  {entry.count} {unit}
+                  {entry.count.toLocaleString()}
                 </span>
-              </a>
-            );
-          })}
+
+                <span className="block font-mono text-[10px] text-[#6E7F9E]">
+                  {metric}
+                </span>
+              </span>
+            </a>
+          ))}
       </div>
-    </div>
+
+      {!loading && entries.length > PREVIEW_SIZE ? (
+        <button
+          onClick={() => setExpanded((value) => !value)}
+          className="mt-auto cursor-pointer border-t border-[#2B3A52] px-5 py-2.5 font-mono text-xs text-[#9AA8C7] transition-colors hover:bg-[#20304a] hover:text-[#F1F5FF]"
+        >
+          {expanded ? "Show top 10" : `Show all ${entries.length}`}
+        </button>
+      ) : null}
+    </section>
   );
 }

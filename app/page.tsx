@@ -32,6 +32,8 @@ export default function Home() {
     const matchesSearch =
       member.name.toLowerCase().includes(query) ||
       member.github.toLowerCase().includes(query) ||
+      member.leetcode?.toLowerCase().includes(query) ||
+      member.codeforces?.toLowerCase().includes(query) ||
       member.techStack?.some((tech) => tech.toLowerCase().includes(query));
 
     const matchesYear =
@@ -153,6 +155,7 @@ export default function Home() {
 
         {selectedMember && (
           <MemberDashboard
+            key={selectedMember.github}
             member={selectedMember}
             onClose={() => setSelectedMember(null)}
           />

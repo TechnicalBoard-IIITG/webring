@@ -1,47 +1,83 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
-export interface LeaderboardEntry {
-  name: string;
-  github: string;
-  portfolio?: string;
-  count: number;
-}
+import type { LeaderboardData } from "@/types/leaderboard";
 
-interface LeaderboardData {
-  github: LeaderboardEntry[];
-  leetcode: LeaderboardEntry[];
-  updatedAt: string;
+export type {
+  LeaderboardBoard,
+  LeaderboardEntry,
+  LeaderboardData,
+} from "@/types/leaderboard";
+
+async function requestLeaderboard(
+  mode: "initial" | "refresh",
+  signal: AbortSignal,
+): Promise<LeaderboardData> {
+  const query = mode === "refresh" ? `?t=${Date.now()}` : "";
+  const response = await fetch(`/api/leaderboard${query}`, { signal });
+
+  if (!response.ok) {
+    throw new Error("Failed to fetch leaderboard");
+  }
+
+  return (await response.json()) as LeaderboardData;
 }
 
 export function useLeaderboard() {
   const [data, setData] = useState<LeaderboardData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(false);
 
-  useEffect(() => {
-    let cancelled = false;
+  const controllerRef = useRef<AbortController | null>(null);
 
-    fetch("/api/leaderboard")
-      .then((res) => {
-        if (!res.ok) throw new Error("Failed to fetch leaderboard");
-        return res.json();
-      })
+  useEffect(() => {
+    const controller = new AbortController();
+    controllerRef.current = controller;
+
+    requestLeaderboard("initial", controller.signal)
       .then((json) => {
-        if (!cancelled) setData(json);
+        if (controller.signal.aborted) return;
+
+        setData(json);
+        setError(false);
       })
       .catch(() => {
-        if (!cancelled) setError(true);
+        if (!controller.signal.aborted) setError(true);
       })
       .finally(() => {
-        if (!cancelled) setLoading(false);
+        if (!controller.signal.aborted) setLoading(false);
       });
 
-    return () => {
-      cancelled = true;
-    };
+    return () => controller.abort();
   }, []);
 
-  return { data, loading, error };
+  const refresh = useCallback(() => {
+    controllerRef.current?.abort();
+
+    const controller = new AbortController();
+    controllerRef.current = controller;
+
+    setRefreshing(true);
+
+    requestLeaderboard("refresh", controller.signal)
+      .then((json) => {
+        if (controller.signal.aborted) return;
+
+        setData(json);
+        setError(false);
+      })
+      .catch(() => {
+        if (!controller.signal.aborted) setError(true);
+      })
+      .finally(() => {
+        if (controller.signal.aborted) return;
+
+        setLoading(false);
+        setRefreshing(false);
+      });
+  }, []);
+
+  return { data, loading, refreshing, error, refresh };
 }

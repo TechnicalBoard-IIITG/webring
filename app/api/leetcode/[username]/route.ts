@@ -1,201 +1,31 @@
 import { NextResponse } from "next/server";
 
-const query = `
-  query userProfile($username: String!) {
-    matchedUser(username: $username) {
-      submitStatsGlobal {
-        acSubmissionNum {
-          difficulty
-          count
-          submissions
-        }
-      }
+import { getLeetCodeProfile } from "@/lib/leetcode";
 
-      userCalendar {
-        activeYears
-        streak
-        totalActiveDays
-        submissionCalendar
-      }
-    }
-  }
-`;
+const USERNAME_PATTERN = /^[A-Za-z0-9_-]{1,40}$/;
 
 export async function GET(
   _request: Request,
-  {
-    params,
-  }: {
-    params: Promise<{ username: string }>;
-  }
+  { params }: { params: Promise<{ username: string }> },
 ) {
-  try {
-    const { username } = await params;
+  const { username } = await params;
 
-    const response = await fetch(
-      "https://leetcode.com/graphql",
-      {
-        method: "POST",
+  if (!USERNAME_PATTERN.test(username)) {
+    return NextResponse.json({ error: "Invalid username" }, { status: 400 });
+  }
 
-        headers: {
-          "Content-Type": "application/json",
-        },
+  const result = await getLeetCodeProfile(username);
 
-        body: JSON.stringify({
-          query,
-          variables: {
-            username,
-          },
-        }),
-
-        cache: "no-store",
-      }
-    );
-
-    if (!response.ok) {
-      return NextResponse.json(
-        {
-          error: "Failed to fetch LeetCode data",
-        },
-        {
-          status: response.status,
-        }
-      );
-    }
-
-    const result = await response.json();
-
-    if (result.errors) {
-      console.error(
-        "LeetCode GraphQL errors:",
-        result.errors
-      );
-
-      return NextResponse.json(
-        {
-          error: "Failed to fetch LeetCode data",
-        },
-        {
-          status: 500,
-        }
-      );
-    }
-
-    const user = result?.data?.matchedUser;
-
-    if (!user) {
-      return NextResponse.json(
-        {
-          error: "User not found",
-        },
-        {
-          status: 404,
-        }
-      );
-    }
-
-    const submissions =
-      user.submitStatsGlobal?.acSubmissionNum ?? [];
-
-    const getStat = (difficulty: string) => {
-      return submissions.find(
-        (item: {
-          difficulty: string;
-          count: number;
-          submissions: number;
-        }) => item.difficulty === difficulty
-      );
-    };
-
-    const all = getStat("All");
-
-    const solved = all?.count ?? 0;
-
-    const easy =
-      getStat("Easy")?.count ?? 0;
-
-    const medium =
-      getStat("Medium")?.count ?? 0;
-
-    const hard =
-      getStat("Hard")?.count ?? 0;
-
-    const totalSubmissions =
-      all?.submissions ?? 0;
-
-    const submissionCalendar =
-      user.userCalendar?.submissionCalendar;
-
-    let calendarData: Record<string, number> = {};
-
-    if (submissionCalendar) {
-      try {
-        calendarData = JSON.parse(
-          submissionCalendar
-        );
-      } catch (error) {
-        console.error(
-          "Failed to parse LeetCode calendar:",
-          error
-        );
-      }
-    }
-
-    const calendar = Object.entries(calendarData)
-      .map(([timestamp, count]) => {
-        const date = new Date(
-          Number(timestamp) * 1000
-        )
-          .toISOString()
-          .split("T")[0];
-
-        return {
-          date,
-          count: Number(count),
-        };
-      })
-      .sort(
-        (a, b) =>
-          new Date(a.date).getTime() -
-          new Date(b.date).getTime()
-      );
-
-    return NextResponse.json({
-      solved,
-      total: solved,
-
-      attempting: 0,
-
-      easy,
-      medium,
-      hard,
-
-      totalSubmissions,
-
-      calendar,
-
-      activeYears:
-        user.userCalendar?.activeYears ?? [],
-
-      streak:
-        user.userCalendar?.streak ?? 0,
-
-      totalActiveDays:
-        user.userCalendar?.totalActiveDays ?? 0,
-    });
-  } catch (error) {
-    console.error(
-      "LeetCode API error:",
-      error
-    );
-
+  if (!result.ok) {
     return NextResponse.json(
-      {
-        error: "Internal server error",
-      },
-      {
-        status: 500,
-      }
+      { error: result.reason === "not-found" ? "User not found" : "Failed to fetch LeetCode data" },
+      { status: result.reason === "not-found" ? 404 : 502 },
     );
   }
+
+  return NextResponse.json(result.data, {
+    headers: {
+      "Cache-Control": "public, max-age=300, s-maxage=600, stale-while-revalidate=3600",
+    },
+  });
 }

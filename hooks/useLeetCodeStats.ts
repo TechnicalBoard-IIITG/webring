@@ -4,69 +4,57 @@ import { useEffect, useState } from "react";
 
 export interface LeetCodeStats {
   solved: number;
-  total: number;
-  attempting: number;
   easy: number;
   medium: number;
   hard: number;
 }
 
-export function useLeetCodeStats(username?: string) {
-  const [stats, setStats] = useState<LeetCodeStats | null>(
-    null
-  );
+interface LoadedStats {
+  username: string;
+  stats: LeetCodeStats;
+}
 
-  const [loading, setLoading] = useState(!!username);
+export function useLeetCodeStats(username?: string) {
+  const [loaded, setLoaded] = useState<LoadedStats | null>(null);
+  const [failedFor, setFailedFor] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!username) {
-      setStats(null);
-      setLoading(false);
-      return;
-    }
+    if (!username) return;
 
-    let cancelled = false;
+    const controller = new AbortController();
 
-    setLoading(true);
-
-    fetch(`/api/leetcode/${username}`)
-      .then((res) => {
-        if (!res.ok) {
+    fetch(`/api/leetcode/${encodeURIComponent(username)}`, {
+      signal: controller.signal,
+    })
+      .then((response) => {
+        if (!response.ok) {
           throw new Error("Failed to fetch LeetCode stats");
         }
 
-        return res.json();
+        return response.json() as Promise<LeetCodeStats>;
       })
-      .then((data) => {
-        if (cancelled) return;
+      .then((stats) => {
+        if (controller.signal.aborted) return;
 
-        setStats({
-          solved: data.solved,
-          total: data.total,
-          attempting: data.attempting,
-          easy: data.easy,
-          medium: data.medium,
-          hard: data.hard,
-        });
+        setFailedFor(null);
+        setLoaded({ username, stats });
       })
       .catch(() => {
-        if (!cancelled) {
-          setStats(null);
-        }
-      })
-      .finally(() => {
-        if (!cancelled) {
-          setLoading(false);
+        if (!controller.signal.aborted) {
+          setFailedFor(username);
         }
       });
 
-    return () => {
-      cancelled = true;
-    };
+    return () => controller.abort();
   }, [username]);
+
+  const stats = loaded && loaded.username === username ? loaded.stats : null;
+  const loading =
+    Boolean(username) && stats === null && failedFor !== username;
 
   return {
     stats,
     loading,
+    error: Boolean(username) && failedFor === username,
   };
 }
