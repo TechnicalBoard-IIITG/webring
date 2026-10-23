@@ -3,27 +3,40 @@
 import Image from "next/image";
 import { ExternalLink } from "lucide-react";
 import { FaGithub } from "react-icons/fa";
+import { codeforcesRankColor } from "@/lib/codeforces-rank";
+import type { CodeforcesRating } from "@/types/codeforces";
 import { Member } from "@/types/member";
 
 interface MemberCardProps {
   member: Member;
   onClick: (member: Member) => void;
+  codeforcesRating?: CodeforcesRating;
   style?: React.CSSProperties;
 }
 
-export default function MemberCard({ member, onClick, style }: MemberCardProps) {
+export default function MemberCard({
+  member,
+  onClick,
+  codeforcesRating,
+  style,
+}: MemberCardProps) {
   const githubUrl = `https://github.com/${member.github}`;
   const cardUrl = member.portfolio || githubUrl;
+  const glowColor = codeforcesRankColor(codeforcesRating?.rank);
 
   const displayUrl = member.portfolio
     ? new URL(member.portfolio).hostname
     : `github.com/${member.github}`;
 
+  const cardStyle = glowColor
+    ? ({ ...style, "--member-glow": glowColor } as React.CSSProperties)
+    : style;
+
   return (
     <div
       onClick={() => onClick(member)}
-      style={style}
-      className="
+      style={cardStyle}
+      className={`
         group
         w-full
         cursor-pointer
@@ -34,8 +47,8 @@ export default function MemberCard({ member, onClick, style }: MemberCardProps) 
         p-3
         transition-all
         duration-300
-        hover:border-[#5B8CFF]
-      "
+        ${glowColor ? "member-card-rated" : "hover:border-[#5B8CFF]"}
+      `}
     >
       <div className="mb-3 flex items-start justify-between">
         <Image
@@ -61,7 +74,11 @@ export default function MemberCard({ member, onClick, style }: MemberCardProps) 
         </a>
       </div>
 
-      <h3 className="truncate font-mono text-[15px] font-semibold text-white transition-colors duration-200 group-hover:text-[#8BC5FF]">
+      <h3
+        className={`truncate font-mono text-[15px] font-semibold text-white transition-[color,text-shadow] duration-300 ${
+          glowColor ? "member-card-name" : "group-hover:text-[#8BC5FF]"
+        }`}
+      >
         {member.name}
       </h3>
 

@@ -97,6 +97,18 @@ body {
   animation: ratingFlow 2.8s linear infinite;
 }
 
+.member-card-rated:hover {
+  border-color: color-mix(in srgb, var(--member-glow) 45%, #2b3a52);
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--member-glow) 20%, transparent),
+    0 0 24px -6px color-mix(in srgb, var(--member-glow) 45%, transparent);
+}
+
+.member-card-rated:hover .member-card-name {
+  color: color-mix(in srgb, var(--member-glow) 35%, #f1f5ff);
+  text-shadow: 0 0 12px color-mix(in srgb, var(--member-glow) 50%, transparent);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .rating-flow {
     animation: none;

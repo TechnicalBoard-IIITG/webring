@@ -11,6 +11,7 @@ import members from "@/data/members.json";
 import type { Member } from "@/types/member";
 
 import MemberDashboard from "@/components/MemberDashboard";
+import { useCodeforcesRatings } from "@/hooks/useCodeforcesRatings";
 import { FaUserPlus } from "react-icons/fa";
 import { FaDiscord } from "react-icons/fa6";
 import { Trophy, Users } from "lucide-react";
@@ -25,6 +26,7 @@ export default function Home() {
   const [selectedYear, setSelectedYear] = useState<number | "All">("All");
   const [selectedMember, setSelectedMember] = useState<Member | null>(null);
   const [activeTab, setActiveTab] = useState<Tab>("directory");
+  const codeforcesRatings = useCodeforcesRatings();
 
   const filteredMembers = allMembers.filter((member) => {
     const query = search.toLowerCase().trim();
@@ -147,6 +149,7 @@ export default function Home() {
             <MemberGrid
               members={filteredMembers}
               onMemberClick={setSelectedMember}
+              codeforcesRatings={codeforcesRatings}
             />
           </>
         ) : (

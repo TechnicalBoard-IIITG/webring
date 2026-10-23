@@ -289,7 +289,7 @@ export default function MemberDashboard({
             </div>
 
             {activeStatsTab ? (
-              <div className="mt-4 flex w-full flex-col items-center">
+              <div className="mt-4 flex w-full flex-1 flex-col items-center">
                 <TabList
                   tabs={statsTabs}
                   active={activeStatsTab}
@@ -297,7 +297,7 @@ export default function MemberDashboard({
                   compact
                 />
 
-                <div className="mt-2 flex justify-center">
+                <div className="mt-2 flex w-full flex-1 items-center justify-center">
                   {activeStatsTab === "leetcode" &&
                   member.leetcode &&
                   leetcodeUrl ? (
