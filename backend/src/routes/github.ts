@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { prisma } from '../lib/db.js';
-import { enqueueMember } from '../lib/github.js';
+import { enqueueMember, REPOSITORY_TTL } from '../lib/github.js';
 import { recentPopularRepositoryIds } from '../lib/repository-selection.js';
 import { enqueueMemberLanguages, LANGUAGE_TTL } from '../lib/github-languages.js';
 export const githubRouter=Router();
@@ -27,5 +27,5 @@ githubRouter.get('/:id/github',async(req,res,next)=>{try{
  if(!summary||!valid||summary.nextAttemptAt<=new Date())enqueueMember(member.id);
  const ids=valid?await recentPopularRepositoryIds({member:member.id}):[];
  const repositories=await prisma.gitHubRepository.findMany({where:{id:{in:ids}},orderBy:[{stars:'desc'},{pushedAt:'desc'},{id:'asc'}],take:2});
- res.json({status:valid?summary.status:'pending',error:valid?summary.error:null,fetchedAt:valid?summary.fetchedAt:null,stale:valid&&summary.fetchedAt?Date.now()-summary.fetchedAt.getTime()>6*3600000:false,repositories,languages:valid?summary.languages:{},activity:valid?summary.activity:[],repositoryCount:valid?summary.repositoryCount:0});
+ res.json({status:valid?summary.status:'pending',error:valid?summary.error:null,fetchedAt:valid?summary.fetchedAt:null,stale:valid&&summary.fetchedAt?Date.now()-summary.fetchedAt.getTime()>REPOSITORY_TTL:false,repositories,languages:valid?summary.languages:{},activity:valid?summary.activity:[],repositoryCount:valid?summary.repositoryCount:0});
  }catch(error){next(error)}});

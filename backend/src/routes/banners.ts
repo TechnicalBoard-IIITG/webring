@@ -1,3 +1,4 @@
+import { invalidatePublic } from '../lib/cache.js';
 import { Router } from 'express';
 import multer from 'multer';
 import { imageType, storeBanner } from '../lib/storage.js';
@@ -24,6 +25,7 @@ bannersRouter.post('/me', requireAuth, (req,res,next) => {
           await tx.profileRevision.create({data:{profileId:profile.id,actorId:req.session.userId!,before:JSON.parse(JSON.stringify(profile)),after:JSON.parse(JSON.stringify(after))}});
         });
       } catch (e) {await stored.remove().catch(()=>{});throw e;}
+      await invalidatePublic('members');
       res.json({banner:url});
     } catch(e) {next(e);}
   });
@@ -39,6 +41,7 @@ bannersRouter.delete('/me', requireAuth, async (req, res, next) => {
       await tx.profileRevision.create({data:{profileId:profile.id,actorId:req.session.userId!,before:JSON.parse(JSON.stringify(profile)),after:JSON.parse(JSON.stringify(updated))}});
       return updated;
     });
+    await invalidatePublic('members');
     res.json({banner:after.banner});
   } catch(error){next(error);}
 });

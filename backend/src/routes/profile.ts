@@ -1,3 +1,4 @@
+import { invalidatePublic } from '../lib/cache.js';
 import { Router } from 'express';
 import { prisma } from '../lib/db.js';
 import { createProfileSchema,editProfileSchema,normalizeOptional } from '../lib/validation.js';
@@ -17,6 +18,7 @@ profileRouter.post('/',async(req,res,next)=>{try{
  const legacyMatches=await prisma.memberProfile.count({where:{legacyEmail:{equals:user.email,mode:'insensitive'}}});
  if(legacyMatches){res.status(409).json({error:'An existing directory profile matches your verified email. Refresh or ask an administrator to resolve the claim.'});return;}
  const profile=await prisma.memberProfile.create({data:{...data,ownerId:user.id,legacyEmail:user.email}});
+ await invalidatePublic('members');
  res.status(201).json(profile);
  }catch(err){next(err);}});
 profileRouter.patch('/me',async(req,res,next)=>{try{
@@ -33,6 +35,7 @@ profileRouter.patch('/me',async(req,res,next)=>{try{
   return after;
  });
  if(!profile){res.status(404).json({error:'Profile not found'});return;}
+ await invalidatePublic('members');
  res.json(profile);
  }catch(err){next(err);}});
 profileRouter.get('/revisions',async(req,res,next)=>{try{

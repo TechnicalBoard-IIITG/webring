@@ -21,7 +21,8 @@ export default function Repositories({years,account}:{years:number[];account:{ro
   let timer:ReturnType<typeof setTimeout>|undefined;let polls=0;
   const load=()=>{void loadRepositories(q.toString()).then(data=>{if(active){setData(data);if(data.total===0&&polls++<15)timer=setTimeout(load,2500)}}).catch(e=>{if(active)setError(e.message)}).finally(()=>{if(active)setLoading(false)})};
   load();
-  return()=>{active=false;clearTimeout(timer)};
+  const refresh=setInterval(load,60*60*1000);
+  return()=>{active=false;clearTimeout(timer);clearInterval(refresh)};
  },[debouncedSearch,year,language,member,sort,forks,page]);
  useEffect(()=>{if(account?.role==='ADMIN')fetch(`${api}/api/repositories/nominations/review?status=${reviewStatus}`,{credentials:'include'}).then(r=>r.ok?r.json():[]).then(setReviews).catch(()=>setMessage('Could not load pending reviews'))},[account,reviewStatus]);
  const review=async(id:string,status:string)=>{try{const r=await fetch(`${api}/api/repositories/nominations/${id}`,{method:'PATCH',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({status})});if(!r.ok)throw Error('Review failed; repository must be public and GitHub available');setReviews(v=>v.filter(n=>n.id!==id));setMessage(`Nomination ${status}`)}catch(e){setMessage((e as Error).message)}};

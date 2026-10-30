@@ -34,6 +34,9 @@ describe('automatic repository discovery',()=>{
   await syncMember('member-a');
   expect(fetcher).toHaveBeenCalledTimes(1);
   expect(db.memberRepository.createMany).toHaveBeenCalledWith({data:[{memberId:'member-a',repositoryId:'repo-a',source:'owner',reviewStatus:'approved'}],skipDuplicates:true});
+  const snapshot=db.memberGitHubSummary.update.mock.calls.find(([args])=>args.data.status==='refreshing')![0];
+  expect(snapshot.data.nextAttemptAt.getTime()-Date.now()).toBeGreaterThan(3590000);
+  expect(snapshot.data.nextAttemptAt.getTime()-Date.now()).toBeLessThanOrEqual(3600000);
  });
  it('honors a database cooldown instead of starting another provider request',async()=>{
   db.memberGitHubSummary.updateMany.mockResolvedValue({count:0});const fetcher=vi.fn();vi.stubGlobal('fetch',fetcher);

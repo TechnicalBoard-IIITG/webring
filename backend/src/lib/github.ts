@@ -4,7 +4,14 @@ import { z } from 'zod';
 export const githubRepositorySchema=z.object({id:z.number().int().positive().safe(),full_name:z.string().regex(/^[\w.-]+\/[\w.-]+$/),owner:z.object({login:z.string()}),private:z.literal(false),description:z.string().nullable(),language:z.string().nullable(),stargazers_count:z.number().int().nonnegative(),forks_count:z.number().int().nonnegative(),pushed_at:z.string().nullable(),fork:z.boolean(),archived:z.boolean(),size:z.number().nonnegative()});
 type GitHubRepository=z.infer<typeof githubRepositorySchema>;
 
-const TTL = 6 * 60 * 60 * 1000;
+export const REPOSITORY_TTL = 60 * 60 * 1000;
+export function repositoryRefreshDue(now = new Date()): Prisma.MemberGitHubSummaryWhereInput {
+ return {OR:[
+  {nextAttemptAt:{lte:now}},
+  // Bring snapshots created with the old six-hour TTL onto the hourly cadence.
+  {status:'ready',fetchedAt:{lte:new Date(now.getTime()-REPOSITORY_TTL)}},
+ ]};
+}
 const RETRY = 30 * 60 * 1000;
 const MAX_REPOS = 100;
 let blockedUntil = 0;
@@ -34,7 +41,7 @@ export async function syncMember(memberId:string) {
  if(!member?.github || !member.isPublic)return;
  const previous=await prisma.memberGitHubSummary.upsert({where:{memberId},create:{memberId,github:member.github},update:{}});
  const now=new Date();
- const claimed=await prisma.memberGitHubSummary.updateMany({where:{memberId,nextAttemptAt:{lte:now}},data:{attemptedAt:now,nextAttemptAt:new Date(Date.now()+RETRY)}});
+ const claimed=await prisma.memberGitHubSummary.updateMany({where:{memberId,...repositoryRefreshDue(now)},data:{status:'refreshing',attemptedAt:now,nextAttemptAt:new Date(Date.now()+RETRY)}});
  if(!claimed.count)return;
  try {
   const username=encodeURIComponent(member.github);
@@ -55,7 +62,7 @@ export async function syncMember(memberId:string) {
    if(!unchanged)return;
    await tx.memberRepository.deleteMany({where:{memberId,source:'owner'}});
    await tx.memberRepository.createMany({data:repositoryIds.map(repositoryId=>({memberId,repositoryId,source:'owner',reviewStatus:'approved'})),skipDuplicates:true});
-   await tx.memberGitHubSummary.update({where:{memberId},data:{github:member.github!,fetchedAt:now,status:'refreshing',error:null,repositoryCount:publicRepos.length,nextAttemptAt:new Date(Date.now()+TTL)}});
+   await tx.memberGitHubSummary.update({where:{memberId},data:{github:member.github!,fetchedAt:now,status:'refreshing',error:null,repositoryCount:publicRepos.length,nextAttemptAt:new Date(Date.now()+REPOSITORY_TTL)}});
   },{timeout:30000});
   // Publish metadata first; optional language/event requests must never hide repositories.
   let detailError:string|null=null;
@@ -91,7 +98,7 @@ export async function warmRepositoryCache(){
  if(warming)return;
  warming=true;
  try{
-  const due=await prisma.memberProfile.findMany({where:{isPublic:true,github:{not:null},OR:[{githubSummary:null},{githubSummary:{nextAttemptAt:{lte:new Date()}}}]},select:{id:true},orderBy:{id:'asc'},take:100});
+  const due=await prisma.memberProfile.findMany({where:{isPublic:true,github:{not:null},OR:[{githubSummary:null},{githubSummary:repositoryRefreshDue()}]},select:{id:true},orderBy:{id:'asc'},take:100});
   for(const member of due)enqueueMember(member.id);
  }finally{warming=false}
 }

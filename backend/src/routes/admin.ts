@@ -1,3 +1,4 @@
+import { invalidatePublic } from '../lib/cache.js';
 import { Router } from 'express';
 import { prisma } from '../lib/db.js';
 import { requireAdmin } from '../middleware/auth.js';
@@ -19,6 +20,8 @@ adminRouter.patch('/members/:id',async(req,res,next)=>{try{
   await tx.profileRevision.create({data:{profileId:after.id,actorId:req.session.userId!,before:JSON.parse(JSON.stringify(before)),after:JSON.parse(JSON.stringify(after))}});
   return after;
  });
- if(!result){res.status(404).json({error:'Not found'});return;}res.json(result);
+ if(!result){res.status(404).json({error:'Not found'});return;}
+ await invalidatePublic('members');
+ res.json(result);
  }catch(err){next(err);}});
 // Deliberately no arbitrary claim-approval endpoint until a verified, audited claim workflow exists.
