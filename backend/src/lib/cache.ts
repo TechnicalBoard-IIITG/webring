@@ -1,23 +1,5 @@
 import { createHash, randomUUID } from 'node:crypto';
-import { createClient } from 'redis';
-
-const prefix = process.env.REDIS_KEY_PREFIX || 'webring:v1';
-const client = process.env.REDIS_URL ? createClient({
- url: process.env.REDIS_URL,
- disableOfflineQueue: true,
- socket: { connectTimeout: 500, reconnectStrategy: retries => Math.min(1000 * 2 ** retries, 30000) },
-}) : null;
-client?.on('error', () => { /* Cache failures must not take down profile reads. */ });
-if (client) void client.connect().catch(() => console.error({event:'redis_unavailable'}));
-
-async function bounded<T>(operation: Promise<T>): Promise<T> {
- let timer: ReturnType<typeof setTimeout> | undefined;
- try {
-  return await Promise.race([operation, new Promise<never>((_, reject) => {
-   timer = setTimeout(() => reject(Error('Cache timeout')), 200);
-  })]);
- } finally { clearTimeout(timer); }
-}
+import { redisClient as client, redisPrefix as prefix, withRedisTimeout as bounded, closeRedis } from './redis.js';
 
 const pending = new Map<string, Promise<unknown>>();
 // Generation keys prevent an in-flight old read from repopulating the current cache.
@@ -53,11 +35,12 @@ export async function cachedPublic<T>(scope: string, query: unknown, ttl: number
 }
 
 export async function invalidatePublic(...scopes: string[]) {
- if (!client?.isReady) return;
+ const activeClient=client;
+ if (!activeClient?.isReady) return;
  await Promise.all(scopes.map(async scope => {
-  try { await bounded(client.set(`${prefix}:${scope}:generation`, randomUUID())); }
+  try { await bounded(activeClient.set(`${prefix}:${scope}:generation`, randomUUID())); }
   catch { console.error({event:'cache_invalidation_failed',scope}); }
  }));
 }
 
-export function closeCache() { if (client?.isOpen) client.destroy(); }
+export const closeCache = closeRedis;

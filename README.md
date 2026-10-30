@@ -119,3 +119,31 @@ Cache misses distribute public member reads across replicas. Before using a repl
 Redeploy Render after setting these values. Verify repeated `/api/members?limit=60&page=1` and `/api/members/<id>` requests, then edit a profile and confirm the next public response reflects the change. Test once with Redis unavailable and once with a replica unavailable: public reads should still succeed through PostgreSQL/the primary. Live Redis and replica infrastructure must be provisioned separately; adding environment variables alone does not create those services.
 
 For hourly GitHub refreshes when the web service can sleep, configure an external hourly job (`0 * * * *`) with the backend working directory and `npm run sync:github`, using the same primary database and `GITHUB_TOKEN`. An in-process timer cannot run while Render suspends the service. Existing successful six-hour snapshots are eligible once they are an hour old; failure backoff is retained.
+
+## Rate limiting and multiple API instances
+
+The API shares request counters through the same `REDIS_URL` and `REDIS_KEY_PREFIX` used for profile caching. Limits are atomic in Redis and apply across Render instances. Separate environments should use separate prefixes; all instances of the same environment must use the same prefix.
+
+| Setting | Default | Applies to |
+| --- | --- | --- |
+| `RATE_LIMIT_API` | 300 per minute | All `/api/*` traffic per client IP/subnet |
+| `RATE_LIMIT_AUTH` | 20 per 15 minutes | Google sign-in starts per client IP/subnet |
+| `RATE_LIMIT_WRITE` | 30 per 15 minutes | Mutating API requests per signed-in account, or IP/subnet when anonymous |
+| `RATE_LIMIT_UPLOAD` | 6 per 15 minutes | Banner uploads per signed-in account, or IP/subnet when anonymous |
+
+An upload consumes both the write and upload quotas; all requests also consume the general API quota. Rejected requests return JSON with HTTP 429, `Retry-After`, `RateLimit`, and `RateLimit-Policy` headers. The frontend directory proxy preserves these headers. Identity keys are hashed and IPv6 addresses are grouped into subnets. Health/readiness probes and OPTIONS preflights bypass limits. The general limit runs before body parsing and session queries; upload limits run before reading multipart bodies.
+
+When Redis is unavailable, each API instance retains a local limit, including traffic counted while Redis was healthy. This keeps the API available with bounded protection, but the aggregate fallback allowance can be up to the per-instance quota multiplied by the instance count. Counters can also reset on Redis data eviction or loss; this is an abuse-control layer, not a billing quota. Tune the environment variables for your traffic, especially if many students share one campus IP.
+
+Render provides the HTTP load balancer; keep the existing Render API URL and Vercel `API_INTERNAL_URL`. To enable balancing:
+
+1. Use a paid Render web service plan, then open its **Compute** page and set **Manual Scaling** to two instances. Free web services cannot run multiple instances. This increases compute charges; the repository does not change paid infrastructure automatically. See [Render scaling](https://render.com/docs/scaling).
+2. Set the service's health check path to `/api/ready`. It returns 200 only when the primary database responds within 2.5 seconds; database failures or service draining return 503. `/api/health` remains a lightweight liveness check. Redis and optional replica outages do not remove a healthy primary-backed instance from service. See [Render health checks](https://render.com/docs/health-checks).
+3. Use identical `SESSION_SECRET`, primary database, Redis settings, origin settings, Google OAuth credentials, and S3/R2 banner settings on all instances. Sessions already live in shared PostgreSQL, so sticky sessions are unnecessary. Production uploads must stay in object storage.
+4. Set the same random 32+ character `API_PROXY_SECRET` on **both Vercel and Render** (server-only). The paged directory API signs the Vercel-provided visitor IP for the backend, so visitors do not share the Vercel function's egress-IP quota. Signatures are bound to the method/path, expire after 30 seconds, and are ignored when invalid. Without this optional secret, directory proxy requests share a per-egress-IP quota. Vercel overwrites the incoming `X-Forwarded-For` header; signing is enabled only on Vercel. See [Vercel request headers](https://vercel.com/docs/headers/request-headers). Rebuild Vercel after changing its environment.
+5. Keep `TRUST_PROXY=true` on Render. `TRUST_PROXY_HOPS` defaults to 1. Verify the actual forwarding chain for direct Render requests and Vercel-proxied requests before changing it: the last trusted proxy must sanitize forwarded addresses. Do not set blanket `trust proxy=true` or blindly increase the hop count when a shorter public route is still accessible. See [Express proxy configuration](https://expressjs.com/en/guide/behind-proxies.html).
+6. Budget database connections across all processes: each API instance defaults to four primary Prisma connections, four session-pool connections, and two per configured read replica. Extra sync workers add their own pools. Database connection-string overrides still apply.
+
+On SIGTERM/SIGINT the backend marks itself unavailable, stops repository scheduling, closes idle HTTP connections, and allows active requests up to 25 seconds to finish before closing Redis and database/session pools. Hung requests are cut off at the deadline. GitHub jobs retain database claims so multiple API instances do not deliberately refresh the same member concurrently; account for the increased provider-wide GitHub request volume when scaling.
+
+For local Redis testing, run `docker compose up -d` from `backend/` and set `REDIS_URL=redis://localhost:6379`. The local Redis port is bound to loopback. Verify distributed limits by running two API processes with the same Redis settings and alternating requests between them; once a shared quota is exhausted, either process should return 429. Tests cover shared quotas, isolated account/upload limits, IPv6 grouping, Redis failure fallback, quota expiration and graceful shutdown; live Render scaling remains a deployment step.

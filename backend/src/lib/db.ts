@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import { PrismaClient } from '@prisma/client';
 const globalDb = globalThis as unknown as { prisma?: PrismaClient };
 const databaseUrl = new URL(process.env.DATABASE_URL!);

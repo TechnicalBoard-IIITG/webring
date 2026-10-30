@@ -11,6 +11,11 @@ const schema = z.object({
   FRONTEND_URL: z.string().url(),
   ALLOWED_ORIGINS: z.string().min(1),
   TRUST_PROXY: z.enum(['true','false']).default('false'),
+  TRUST_PROXY_HOPS: z.coerce.number().int().min(1).max(10).default(1),
+  RATE_LIMIT_API: z.coerce.number().int().positive().default(300),
+  RATE_LIMIT_AUTH: z.coerce.number().int().positive().default(20),
+  RATE_LIMIT_WRITE: z.coerce.number().int().positive().default(30),
+  RATE_LIMIT_UPLOAD: z.coerce.number().int().positive().default(6),
   BOOTSTRAP_ADMIN_EMAILS: z.string().default(''),
 });
 export const config = schema.parse(process.env);
