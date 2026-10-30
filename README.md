@@ -61,7 +61,33 @@ Backups, environment files, uploads and dependency/build directories stay out of
 - Repository discovery runs automatically at API startup and checks again every 15 minutes. Successful snapshots expire after six hours; failed refreshes back off. `npm run sync:github` in `backend/` also supports a separate scheduler. A server-only `GITHUB_TOKEN` raises GitHub's public API rate limit.
 - Banner uploads accept GIF, PNG, JPEG and WebP up to 5 MB. Production requires persistent R2/S3-compatible storage; configure the placeholders in `backend/.env.banner.example`. Preserve existing banner URLs and files when moving hosts.
 
-For production, use HTTPS, configure allowed origins and the Google callback, and host the frontend/API under compatible sites for session cookies. Keep all credentials on the server.
+For production, use HTTPS and keep all credentials on the server.
+
+## Vercel frontend and Render API
+
+The frontend proxies `/backend/*` to `API_INTERNAL_URL`. This keeps the session cookie on the frontend domain, including Google OAuth, without changing the existing Next.js `/api/*` routes. The destination is configured at build time; rebuild Vercel after changing it.
+
+Set these environment variables on Vercel for the production deployment:
+
+```env
+NEXT_PUBLIC_API_URL=https://iiitg-index.vercel.app/backend
+API_INTERNAL_URL=https://webring-xosu.onrender.com
+```
+
+Set these on Render, retaining the existing Neon URLs, Google credentials, session secret and object storage settings:
+
+```env
+NODE_ENV=production
+TRUST_PROXY=true
+FRONTEND_URL=https://iiitg-index.vercel.app
+ALLOWED_ORIGINS=https://iiitg-index.vercel.app
+PUBLIC_API_URL=https://webring-xosu.onrender.com
+GOOGLE_CALLBACK_URL=https://iiitg-index.vercel.app/backend/api/auth/google/callback
+```
+
+Register that exact `GOOGLE_CALLBACK_URL` as an authorized redirect URI on the Google OAuth web client. Deploy the proxy code, rebuild Vercel with its production environment variables, and redeploy Render after updating its settings. Do not use the direct Render callback for this deployment: OAuth must start and finish through the frontend proxy to retain its session cookie.
+
+Check `https://iiitg-index.vercel.app/backend/api/health` for `{"status":"ok"}`, then verify Google login, profile loading, saving and logout with an institutional account. Local development can keep the localhost values in the example files. Vercel preview domains are not authorized by the production origin setting.
 
 ## Checks
 
