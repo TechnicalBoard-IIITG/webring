@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-import members from "@/data/members.json";
+import { getMembers } from "@/lib/members-data";
 import { getCodeforcesProfiles } from "@/lib/codeforces";
 import type { CodeforcesRating } from "@/types/codeforces";
 import type { Member } from "@/types/member";
@@ -8,6 +8,7 @@ import type { Member } from "@/types/member";
 export const maxDuration = 30;
 
 export async function GET() {
+  const members = await getMembers();
   const handles = Array.from(
     new Set(
       (members as Member[])

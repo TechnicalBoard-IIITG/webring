@@ -1,5 +1,7 @@
 "use client";
 
+import { useState } from "react";
+import YearFilter from "./YearFilter";
 import { RefreshCw } from "lucide-react";
 import type { ReactNode } from "react";
 import { FaGithub } from "react-icons/fa";
@@ -71,10 +73,11 @@ function timeAgo(iso: string): string {
   return `${Math.floor(hours / 24)}d ago`;
 }
 
-export default function Leaderboard() {
-  const { data, loading, refreshing, error, refresh } = useLeaderboard();
+export default function Leaderboard({years}:{years:number[]}) {
+  const [year,setYear]=useState<number | "All">("All");
+  const { data, loading, refreshing, loadingBoards, failedBoards, error, refresh } = useLeaderboard(year);
 
-  const boards = data?.boards ?? PLACEHOLDER_BOARDS;
+  const boards = PLACEHOLDER_BOARDS.map(empty=>data?.boards.find(board=>board.id===empty.id)||empty);
 
   return (
     <div className="mt-10 animate-fade-in-up">
@@ -90,8 +93,8 @@ export default function Leaderboard() {
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
-          {data && !loading ? (
+        <div className="flex w-full flex-wrap items-center justify-between gap-3 sm:w-auto sm:justify-start">
+          {data ? (
             <p className="font-mono text-xs text-[#6E7F9E]">
               Updated {timeAgo(data.updatedAt)}
             </p>
@@ -100,7 +103,7 @@ export default function Leaderboard() {
           <button
             onClick={refresh}
             disabled={loading || refreshing}
-            className="flex cursor-pointer items-center gap-1.5 border border-[#2B3A52] px-2.5 py-1.5 font-mono text-xs text-[#9AA8C7] transition-colors hover:border-[#5B8CFF] hover:text-[#F1F5FF] disabled:cursor-default disabled:opacity-50"
+            className="mobile-target flex min-h-11 cursor-pointer items-center gap-1.5 sm:min-h-0 border border-[#2B3A52] px-2.5 py-1.5 font-mono text-xs text-[#9AA8C7] transition-colors hover:border-[#5B8CFF] hover:text-[#F1F5FF] disabled:cursor-default disabled:opacity-50"
           >
             <RefreshCw
               size={12}
@@ -111,7 +114,8 @@ export default function Leaderboard() {
         </div>
       </div>
 
-      {error && !data ? (
+      <YearFilter members={[]} availableYears={years} value={year} onChange={setYear}/>
+      {error && !data && !loading ? (
         <div className="border border-[#2B3A52] bg-[#1A2233] px-5 py-8 text-center">
           <p className="font-mono text-sm text-[#9AA8C7]">
             Couldn&apos;t load the leaderboard right now.
@@ -129,7 +133,7 @@ export default function Leaderboard() {
         <>
           {error ? (
             <p className="mb-3 font-mono text-xs text-[#E0A35B]">
-              Couldn&apos;t refresh — showing the last result.
+              Some platforms could not load. Showing available results.
             </p>
           ) : null}
 
@@ -146,10 +150,10 @@ export default function Leaderboard() {
                   metric={board.metric}
                   windowLabel={board.windowLabel}
                   entries={board.entries}
-                  loading={loading}
+                  loading={loadingBoards[board.id]}
                   eligible={board.eligible}
                   unavailable={board.unavailable}
-                  emptyMessage={emptyMessageFor(board)}
+                  emptyMessage={failedBoards[board.id]?"Could not load this board. Try Refresh.":emptyMessageFor(board)}
                 />
               );
             })}

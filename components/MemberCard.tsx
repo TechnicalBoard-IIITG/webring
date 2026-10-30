@@ -21,12 +21,12 @@ export default function MemberCard({
   style,
 }: MemberCardProps) {
   const githubUrl = `https://github.com/${member.github}`;
-  const cardUrl = member.portfolio || githubUrl;
+  const cardUrl = member.portfolio || (member.github ? githubUrl : undefined);
   const glowColor = codeforcesRankColor(codeforcesRating?.rank);
 
   const displayUrl = member.portfolio
     ? new URL(member.portfolio).hostname
-    : `github.com/${member.github}`;
+    : member.github ? `github.com/${member.github}` : "No public website";
 
   const cardStyle = glowColor
     ? ({ ...style, "--member-glow": glowColor } as React.CSSProperties)
@@ -35,10 +35,15 @@ export default function MemberCard({
   return (
     <div
       onClick={() => onClick(member)}
+      role="button"
+      tabIndex={0}
+      aria-label={`Open ${member.name} profile`}
+      onKeyDown={event=>{if(event.target===event.currentTarget&&(event.key==="Enter"||event.key===" ")){event.preventDefault();onClick(member)}}}
       style={cardStyle}
       className={`
         group
         w-full
+        min-w-0
         cursor-pointer
         animate-fade-in-up
         border
@@ -52,7 +57,7 @@ export default function MemberCard({
     >
       <div className="mb-3 flex items-start justify-between">
         <Image
-          src={`https://github.com/${member.github}.png`}
+          src={member.github?`https://github.com/${encodeURIComponent(member.github)}.png`:"/favicon.ico"}
           alt={member.name}
           width={40}
           height={40}
@@ -61,6 +66,7 @@ export default function MemberCard({
         />
 
         <a
+          className="mobile-target flex size-11 shrink-0 items-center justify-center sm:size-auto"
           href={cardUrl}
           target="_blank"
           rel="noopener noreferrer"
@@ -75,7 +81,7 @@ export default function MemberCard({
       </div>
 
       <h3
-        className={`truncate font-mono text-[15px] font-semibold text-white transition-[color,text-shadow] duration-300 ${
+        className={`line-clamp-2 break-words font-mono text-[15px] sm:line-clamp-none sm:truncate font-semibold text-white transition-[color,text-shadow] duration-300 ${
           glowColor ? "member-card-name" : "group-hover:text-[#8BC5FF]"
         }`}
       >
@@ -87,16 +93,18 @@ export default function MemberCard({
       </p>
 
       <div className="mt-6 flex items-center">
+        {member.github ? (
         <a
           href={githubUrl}
           target="_blank"
           rel="noopener noreferrer"
           onClick={(e) => e.stopPropagation()}
-          className="text-[#8B95B6] transition-colors hover:text-white"
+          className="mobile-target flex min-h-11 min-w-11 items-center text-[#8B95B6] transition-colors hover:text-white sm:min-h-0 sm:min-w-0"
           aria-label={`${member.name}'s GitHub`}
         >
           <FaGithub size={18} />
         </a>
+        ) : null}
       </div>
     </div>
   );

@@ -14,10 +14,10 @@ export default function MemberGrid({
   codeforcesRatings,
 }: MemberGridProps) {
   return (
-    <div className="mt-10 grid grid-cols-2 gap-5 sm:flex sm:flex-wrap sm:[&>*]:w-44">
+    <div className="mt-10 grid grid-cols-1 gap-3 min-[360px]:grid-cols-2 sm:flex sm:gap-5 sm:flex-wrap sm:[&>*]:w-44">
       {members.map((member, index) => (
         <MemberCard
-          key={member.github}
+          key={member.id || member.github || member.name}
           member={member}
           onClick={onMemberClick}
           codeforcesRating={

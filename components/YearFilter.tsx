@@ -1,14 +1,18 @@
 "use client";
 
 import { useMemo } from "react";
-import members from "@/data/members.json";
+import type { Member } from "@/types/member";
 
 interface YearFilterProps {
+  members: Member[];
+  availableYears?: number[];
   value: number | "All";
   onChange: (year: number | "All") => void;
 }
 
 export default function YearFilter({
+  members,
+  availableYears,
   value,
   onChange,
 }: YearFilterProps) {
@@ -16,18 +20,20 @@ export default function YearFilter({
     return [
       "All",
       ...Array.from(
-        new Set(members.map((member) => member.year))
+        new Set(availableYears || members.map((member) => member.year))
       ).sort((a, b) => b - a),
     ];
-  }, []);
+  }, [members, availableYears]);
 
   return (
-    <div className="relative mt-8">
+    <div className="relative mt-8 min-w-0">
       <div
         className="
           flex
-          gap-3
+          gap-2 sm:gap-3
+          max-w-full
           overflow-x-auto
+          overscroll-x-contain
           pb-2
           scrollbar-none
           [scrollbar-width:none]
@@ -41,8 +47,13 @@ export default function YearFilter({
             <button
               key={year}
               onClick={() => onChange(year)}
+              aria-pressed={active}
               className={`
+                min-h-11
                 shrink-0
+                focus-visible:outline-2
+                focus-visible:-outline-offset-2
+                focus-visible:outline-[#8BC5FF]
                 whitespace-nowrap
                 border
                 px-4
@@ -69,6 +80,7 @@ export default function YearFilter({
       
       <div
         className="
+          hidden sm:block
           pointer-events-none
           absolute
           right-0

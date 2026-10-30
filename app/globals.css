@@ -1,4 +1,16 @@
 @import "tailwindcss";
+
+/* Keep touch forms readable, including phones in landscape at desktop breakpoints. */
+@media (pointer: coarse) {
+  .mobile-input:is(input, select, textarea) {
+    font-size: 16px;
+  }
+
+  .mobile-target {
+    min-height: 44px;
+    min-width: 44px;
+  }
+}
 ::-webkit-scrollbar {
   width: 5px;
 }

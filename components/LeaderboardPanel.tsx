@@ -46,7 +46,7 @@ export default function LeaderboardPanel({
   return (
     <section className="flex min-w-0 flex-col border border-[#2B3A52] bg-[#1A2233]/60 backdrop-blur-sm">
       <header
-        className="flex items-center gap-2 border-b border-[#2B3A52] px-5 py-4"
+        className="flex min-w-0 items-center gap-2 border-b border-[#2B3A52] px-4 py-4 sm:px-5"
         style={{ boxShadow: `inset 0 2px 0 ${accent}` }}
       >
         <span style={{ color: accent }} aria-hidden>
@@ -84,7 +84,7 @@ export default function LeaderboardPanel({
               href={entry.profileUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-3 px-5 py-3 transition-colors duration-150 hover:bg-[#20304a]"
+              className="flex min-w-0 items-center gap-2 px-4 py-3 transition-colors sm:gap-3 sm:px-5 duration-150 hover:bg-[#20304a]"
             >
               <span
                 className="w-5 shrink-0 text-center font-mono text-sm font-bold"
@@ -103,7 +103,7 @@ export default function LeaderboardPanel({
               />
 
               <span className="min-w-0 flex-1">
-                <span className="block truncate font-mono text-sm text-[#F1F5FF]">
+                <span className="block break-words font-mono text-sm [overflow-wrap:anywhere] sm:truncate text-[#F1F5FF]">
                   {entry.name}
                 </span>
 
@@ -133,7 +133,7 @@ export default function LeaderboardPanel({
       {!loading && entries.length > PREVIEW_SIZE ? (
         <button
           onClick={() => setExpanded((value) => !value)}
-          className="mt-auto cursor-pointer border-t border-[#2B3A52] px-5 py-2.5 font-mono text-xs text-[#9AA8C7] transition-colors hover:bg-[#20304a] hover:text-[#F1F5FF]"
+          className="mobile-target mt-auto min-h-11 cursor-pointer border-t sm:min-h-0 border-[#2B3A52] px-5 py-2.5 font-mono text-xs text-[#9AA8C7] transition-colors hover:bg-[#20304a] hover:text-[#F1F5FF]"
         >
           {expanded ? "Show top 10" : `Show all ${entries.length}`}
         </button>

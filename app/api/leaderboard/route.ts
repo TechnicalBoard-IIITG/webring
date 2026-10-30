@@ -1,18 +1,32 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 
-import members from "@/data/members.json";
+import { getMembers } from "@/lib/members-data";
 import type { Member } from "@/types/member";
 import { buildLeaderboard } from "@/lib/leaderboard";
+import type { LeaderboardBoardId } from '@/types/leaderboard';
 
 export const maxDuration = 60;
 
-export async function GET() {
+const cached = new Map<string,{until:number; data:Awaited<ReturnType<typeof buildLeaderboard>>}>();
+const pending = new Map<string,Promise<Awaited<ReturnType<typeof buildLeaderboard>>>>();
+export async function GET(req:NextRequest) {
+  const year=req.nextUrl.searchParams.get('year');
+  const platform=req.nextUrl.searchParams.get('platform');
+  if(platform&&!['github','leetcode','codeforces'].includes(platform))return NextResponse.json({error:'Invalid platform'},{status:400});
+  if(year && (!/^\d{4}$/.test(year)||Number(year)<2000||Number(year)>2200))return NextResponse.json({error:'Invalid year'},{status:400});
+  const key=`${year||'all'}:${platform||'all'}`;
   try {
-    const data = await buildLeaderboard(members as Member[]);
+    const hit=cached.get(key);
+    let data=hit && hit.until>Date.now()?hit.data:undefined;
+    if(!data){
+      let job=pending.get(key);
+      if(!job){job=(async()=>{const members=await getMembers();const result=await buildLeaderboard(members.filter(m=>!year||m.year===Number(year)) as Member[],(platform||undefined) as LeaderboardBoardId|undefined);const failed=result.boards.some(b=>b.eligible>0&&b.unavailable>=b.eligible);cached.set(key,{until:Date.now()+(failed?10000:300000),data:result});return result})().finally(()=>pending.delete(key));pending.set(key,job)}
+      data=await job;
+    }
 
     return NextResponse.json(data, {
       headers: {
-        "Cache-Control": "public, s-maxage=300, stale-while-revalidate=1800",
+        "Cache-Control": data.boards.some(b=>b.eligible>0&&b.unavailable>=b.eligible)?'no-store':"public, s-maxage=300, stale-while-revalidate=1800",
       },
     });
   } catch (error) {

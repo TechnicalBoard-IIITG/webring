@@ -11,7 +11,7 @@ interface LeetCodeCalendarProps {
 }
 
 export default function LeetCodeCalendar({ username }: LeetCodeCalendarProps) {
-  const { data, loading, error } = useLeetCodeCalendar(username);
+  const { data, loading, error, retry } = useLeetCodeCalendar(username);
 
   if (!username) return null;
 
@@ -21,10 +21,12 @@ export default function LeetCodeCalendar({ username }: LeetCodeCalendarProps) {
       loading={loading}
       error={error}
       accent="#FFA116"
+      label="LeetCode activity"
+      onRetry={retry}
       unit="submissions"
-      emptyMessage="No LeetCode activity in the last year."
+      emptyMessage="No LeetCode activity in the last 365 days."
       errorMessage="Couldn't load LeetCode activity."
-      footnote={data ? `${data.solved} solved` : undefined}
+      footnote={data ? `${data.solved} problems solved total` : undefined}
     />
   );
 }

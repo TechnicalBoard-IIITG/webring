@@ -1,0 +1,134 @@
+generator client {
+  provider = "prisma-client-js"
+}
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+enum Role {
+  MEMBER
+  ADMIN
+}
+model User {
+  id         String   @id @default(cuid())
+  googleSub  String   @unique
+  email      String   @unique
+  role       Role     @default(MEMBER)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  lastLogin  DateTime @default(now())
+  profile    MemberProfile?
+  revisions  ProfileRevision[]
+}
+model MemberProfile {
+  id             String   @id @default(cuid())
+  ownerId        String?  @unique
+  owner          User?    @relation(fields: [ownerId], references: [id], onDelete: SetNull)
+  legacyEmail    String?
+  legacySourceId String?  @unique
+  name           String
+  year           Int
+  github         String?
+  portfolio      String?
+  leetcode       String?
+  codeforces     String?
+  techStack      String[] @default([])
+  banner         String?
+  bio            String?
+  linkedin       String?
+  isPublic       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  revisions      ProfileRevision[]
+  repositories   MemberRepository[]
+  githubSummary  MemberGitHubSummary?
+  nominations    RepositoryNomination[]
+  @@index([year])
+  @@index([name])
+  @@index([github])
+  @@index([legacyEmail])
+}
+
+model GitHubRepository {
+  id String @id @default(cuid())
+  githubId String @unique
+  fullName String
+  ownerLogin String
+  htmlUrl String
+  description String?
+  language String?
+  languageBytes Json @default("{}")
+  stars Int @default(0)
+  forks Int @default(0)
+  pushedAt DateTime?
+  fetchedAt DateTime @default(now())
+  isFork Boolean @default(false)
+  isArchived Boolean @default(false)
+  isPrivate Boolean @default(false)
+  members MemberRepository[]
+  @@index([stars, id])
+  @@index([pushedAt, id])
+  @@index([language])
+}
+
+model MemberRepository {
+  memberId String
+  repositoryId String
+  source String @default("owner")
+  reviewStatus String @default("approved")
+  createdAt DateTime @default(now())
+  member MemberProfile @relation(fields:[memberId], references:[id], onDelete:Cascade)
+  repository GitHubRepository @relation(fields:[repositoryId], references:[id], onDelete:Cascade)
+  @@id([memberId, repositoryId])
+  @@index([repositoryId])
+}
+
+model MemberGitHubSummary {
+  memberId String @id
+  github String
+  fetchedAt DateTime?
+  attemptedAt DateTime?
+  nextAttemptAt DateTime @default(now())
+  status String @default("pending")
+  error String?
+  languages Json @default("{}")
+  languageFetchedAt DateTime?
+  languageNextAttemptAt DateTime @default(now())
+  languageError String?
+  activity Json @default("[]")
+  repositoryCount Int @default(0)
+  member MemberProfile @relation(fields:[memberId], references:[id], onDelete:Cascade)
+}
+
+model RepositoryNomination {
+  id String @id @default(cuid())
+  memberId String
+  fullName String
+  reason String
+  status String @default("pending")
+  reviewedBy String?
+  createdAt DateTime @default(now())
+  reviewedAt DateTime?
+  member MemberProfile @relation(fields:[memberId], references:[id], onDelete:Cascade)
+  @@unique([memberId, fullName])
+  @@index([status, createdAt])
+}
+model ProfileRevision {
+  id        String   @id @default(cuid())
+  profileId String
+  actorId   String
+  before    Json
+  after     Json
+  createdAt DateTime @default(now())
+  profile   MemberProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  actor     User @relation(fields: [actorId], references: [id], onDelete: Restrict)
+  @@index([profileId, createdAt])
+}
+model ImportRecord {
+  id           String @id @default(cuid())
+  sourceKey    String @unique
+  sha256       String
+  profileId    String
+  importedAt   DateTime @default(now())
+}

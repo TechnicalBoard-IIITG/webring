@@ -1,0 +1,20 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+
+    environment:
+      POSTGRES_USER: iiitg
+      POSTGRES_PASSWORD: iiitg_dev_password
+      POSTGRES_DB: iiitg_index
+    ports:
+      - "5432:5432"
+    volumes:
+      - iiitg_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U iiitg -d iiitg_index"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+volumes:
+  iiitg_pgdata:

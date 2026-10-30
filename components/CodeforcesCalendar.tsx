@@ -11,7 +11,7 @@ interface CodeforcesCalendarProps {
 }
 
 export default function CodeforcesCalendar({ handle }: CodeforcesCalendarProps) {
-  const { data, loading, error } = useCodeforces(handle);
+  const { data, loading, error, retry } = useCodeforces(handle);
 
   if (!handle) return null;
 
@@ -21,8 +21,10 @@ export default function CodeforcesCalendar({ handle }: CodeforcesCalendarProps) 
       loading={loading}
       error={error}
       accent="#E05B5B"
+      label="Codeforces activity"
+      onRetry={retry}
       unit="submissions"
-      emptyMessage="No Codeforces submissions in the last year."
+      emptyMessage="No Codeforces submissions in the last 365 days."
       errorMessage="Couldn't load Codeforces activity."
       footnote={
         data ? `${data.acceptedSubmissions} accepted` : undefined

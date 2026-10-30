@@ -10,6 +10,7 @@ export default function SearchBar({
   return (
     <input
       type="text"
+      aria-label="Search members"
       value={value}
       onChange={(e) => onChange(e.target.value)}
       placeholder="search members..."

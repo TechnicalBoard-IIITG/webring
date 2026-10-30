@@ -1,30 +1,13 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef, type CSSProperties } from "react";
+import { buildActivityCalendar } from "@/lib/activity-calendar";
 
 import type { ActivityDay } from "@/types/activity";
 
 const CELL_SIZE = 10;
 const GAP = 3;
-const DAY_MS = 24 * 60 * 60 * 1000;
-const YEAR_DAYS = 365;
-
-const MONTHS = [
-  "Jan",
-  "Feb",
-  "Mar",
-  "Apr",
-  "May",
-  "Jun",
-  "Jul",
-  "Aug",
-  "Sep",
-  "Oct",
-  "Nov",
-  "Dec",
-];
-
-const LEVEL_ALPHAS = [0, 0.22, 0.42, 0.66, 1];
+const LEVEL_ALPHAS = [0, 0.35, 0.55, 0.78, 1];
 
 interface ActivityHeatmapProps {
   days: ActivityDay[];
@@ -35,11 +18,8 @@ interface ActivityHeatmapProps {
   emptyMessage: string;
   errorMessage: string;
   footnote?: string;
-}
-
-interface WeekDay {
-  date: string;
-  count: number;
+  label?: string;
+  onRetry?: () => void;
 }
 
 function hexToRgb(hex: string): { r: number; g: number; b: number } | null {
@@ -72,164 +52,78 @@ function colorFor(count: number, max: number, accent: string): string {
 }
 
 export default function ActivityHeatmap({
-  days,
-  loading,
-  error,
-  accent,
-  unit,
-  emptyMessage,
-  errorMessage,
-  footnote,
+  days, loading, error, accent, unit, emptyMessage, errorMessage, footnote,
+  label = "Activity", onRetry,
 }: ActivityHeatmapProps) {
-  const { weeks, months, maxCount, total } = useMemo(() => {
-    const counts = new Map(days.map((day) => [day.date, day.count]));
-
-    const end = new Date();
-    end.setUTCHours(0, 0, 0, 0);
-
-    const rangeStart = new Date(end.getTime() - (YEAR_DAYS - 1) * DAY_MS);
-    const rangeStartKey = rangeStart.toISOString().slice(0, 10);
-
-    // Start on the Sunday before the range so every row is a weekday.
-    const gridStart = new Date(rangeStart);
-    gridStart.setUTCDate(gridStart.getUTCDate() - gridStart.getUTCDay());
-
-    const groupedWeeks: WeekDay[][] = [];
-    const monthLabels: Array<{ name: string; weekIndex: number }> = [];
-
-    let max = 0;
-    let sum = 0;
-    let lastMonth = -1;
-
-    const cursor = new Date(gridStart);
-
-    while (cursor.getTime() <= end.getTime()) {
-      const week: WeekDay[] = [];
-
-      for (let offset = 0; offset < 7; offset++) {
-        const day = new Date(cursor.getTime() + offset * DAY_MS);
-        const date = day.toISOString().slice(0, 10);
-        const count = counts.get(date) ?? 0;
-
-        week.push({ date, count });
-
-        if (date >= rangeStartKey && day.getTime() <= end.getTime()) {
-          max = Math.max(max, count);
-          sum += count;
-        }
-      }
-
-      const month = new Date(`${week[0].date}T00:00:00Z`).getUTCMonth();
-
-      if (month !== lastMonth) {
-        monthLabels.push({ name: MONTHS[month], weekIndex: groupedWeeks.length });
-        lastMonth = month;
-      }
-
-      groupedWeeks.push(week);
-      cursor.setUTCDate(cursor.getUTCDate() + 7);
-    }
-
-    return {
-      weeks: groupedWeeks,
-      months: monthLabels,
-      maxCount: max,
-      total: sum,
-    };
-  }, [days]);
-
-  if (loading) {
-    return (
-      <p className="font-mono text-sm text-[#6E7F9E]">Loading activity…</p>
-    );
-  }
-
-  if (error) {
-    return <p className="font-mono text-sm text-[#6E7F9E]">{errorMessage}</p>;
-  }
-
-  if (total === 0) {
-    return <p className="font-mono text-sm text-[#6E7F9E]">{emptyMessage}</p>;
-  }
-
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const calendar = useMemo(() => buildActivityCalendar(days), [days]);
+  const { weeks, months, maxCount, total, activeDays, longestStreak } = calendar;
+  const pitch = CELL_SIZE + GAP;
+  const left = 28;
+  const top = 20;
+  const width = left + weeks.length * pitch;
+  const height = top + 7 * pitch;
   const singular = unit.endsWith("s") ? unit.slice(0, -1) : unit;
+  const frame = "w-full min-w-0 border border-[#34465F] bg-[#121826] p-3 font-mono sm:p-4";
+  useEffect(() => {
+    const scroller = scrollRef.current;
+    if (!loading && !error && scroller) scroller.scrollLeft = scroller.scrollWidth - scroller.clientWidth;
+  }, [days, loading, error]);
+
+  if (loading) return (
+    <section aria-label={label} aria-busy="true" className={frame}>
+      <p role="status" className="mb-4 text-xs text-[#A8B9D4]">Loading activity...</p>
+      <div aria-hidden="true" className="animate-pulse motion-reduce:animate-none">
+        <div className="mb-4 h-5 w-36 bg-[#233046]" />
+        <div className="h-24 w-full bg-[#1A2333]" />
+        <div className="mt-3 h-3 w-28 bg-[#233046]" />
+      </div>
+    </section>
+  );
+
+  if (error) return (
+    <section aria-label={label} className={`${frame} flex min-h-48 flex-col items-start justify-center gap-3`}>
+      <p role="alert" className="text-sm text-[#C3D0E7]">{errorMessage}</p>
+      {onRetry && <button type="button" onClick={onRetry} className="min-h-11 cursor-pointer border border-[#40546E] sm:min-h-0 px-3 py-2 text-xs text-[#D4DDF0] transition-colors hover:border-[#8BC5FF] hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#8BC5FF]">Try again</button>}
+    </section>
+  );
 
   return (
-    <div className="w-full min-w-0">
-      <div className="overflow-x-auto pb-1">
-        <div className="min-w-fit">
-          <div
-            className="relative mb-2 h-5"
-            style={{ width: `${weeks.length * (CELL_SIZE + GAP) - GAP}px` }}
-          >
-            {months.map((month) => (
-              <span
-                key={`${month.name}-${month.weekIndex}`}
-                className="absolute font-mono text-xs text-[#9AA8C7]"
-                style={{ left: `${month.weekIndex * (CELL_SIZE + GAP)}px` }}
-              >
-                {month.name}
-              </span>
-            ))}
-          </div>
+    <section aria-label={label} className={frame}>
+      <div className="mb-4 flex flex-wrap items-start justify-between gap-x-6 gap-y-3">
+        <div className="min-w-0">
+          <p className="text-sm text-[#D4DDF0]"><span className="text-xl font-bold" style={{color:accent}}>{total.toLocaleString()}</span> {total === 1 ? singular : unit}</p>
+          <p className="mt-1 text-xs text-[#9AA8C7] sm:text-[10px]">Last 365 days / UTC</p>
+        </div>
+        <dl className="flex flex-wrap gap-5 text-xs text-[#9AA8C7] sm:text-[10px]">
+          <div><dt>Active days</dt><dd className="mt-1 text-sm font-semibold text-[#F1F5FF]">{activeDays}</dd></div>
+          <div><dt>Longest streak</dt><dd className="mt-1 text-sm font-semibold text-[#F1F5FF]">{longestStreak} {longestStreak === 1 ? "day" : "days"}</dd></div>
+        </dl>
+      </div>
 
-          <div className="flex" style={{ gap: `${GAP}px` }}>
-            {weeks.map((week) => (
-              <div
-                key={week[0].date}
-                className="flex flex-col"
-                style={{ gap: `${GAP}px` }}
-              >
-                {week.map((day) => (
-                  <div
-                    key={day.date}
-                    title={`${day.count} ${day.count === 1 ? singular : unit} on ${day.date}`}
-                    className="rounded-[2px] transition-transform duration-150 hover:scale-125"
-                    style={{
-                      width: `${CELL_SIZE}px`,
-                      height: `${CELL_SIZE}px`,
-                      backgroundColor: colorFor(day.count, maxCount || 1, accent),
-                      boxShadow: "inset 0 0 0 0.5px #2B3A52",
-                    }}
-                  />
-                ))}
-              </div>
-            ))}
-          </div>
+      <div ref={scrollRef} className="max-w-full overflow-x-auto overscroll-x-contain pb-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#8BC5FF]" tabIndex={0} role="region" aria-label={`${label} calendar, ${calendar.startKey} to ${calendar.endKey}. Scroll horizontally to see all dates.`}>
+        <div className="min-w-[var(--calendar-width)] sm:min-w-[480px]" style={{"--calendar-width":`${width}px`} as CSSProperties}>
+          <svg viewBox={`0 0 ${width} ${height}`} className="block w-full" role="img" aria-label={`${total} ${unit} across ${activeDays} active days`}>
+            {months.map(month => <text key={`${month.name}-${month.weekIndex}`} x={Math.min(left+month.weekIndex*pitch,width-26)} y={10} fill="#A8B9D4" fontSize={9}>{month.name}</text>)}
+            {[{day:1,label:"Mon"},{day:3,label:"Wed"},{day:5,label:"Fri"}].map(day=><text key={day.day} x={0} y={top+day.day*pitch+8} fill="#8593B2" fontSize={8}>{day.label}</text>)}
+            {weeks.flatMap((week,weekIndex)=>week.map((day,dayIndex)=>day.inRange ? (
+              <rect key={day.date} x={left+weekIndex*pitch} y={top+dayIndex*pitch} width={CELL_SIZE} height={CELL_SIZE} rx={1.5} fill={colorFor(day.count,maxCount||1,accent)} stroke="#32435D" strokeWidth={0.5}>
+                <title>{`${day.count} ${day.count===1?singular:unit} on ${day.date}`}</title>
+              </rect>
+            ) : null))}
+          </svg>
         </div>
       </div>
 
-      <div className="mt-2 flex flex-wrap items-center justify-between gap-3">
-        <p className="min-w-0 font-mono text-sm text-[#9AA8C7]">
-          {total.toLocaleString()} {unit} in the last year
-          {footnote ? (
-            <span className="text-[#6E7F9E]"> · {footnote}</span>
-          ) : null}
-        </p>
-
-        <div className="flex shrink-0 items-center gap-2">
-          <span className="font-mono text-xs text-[#9AA8C7]">Less</span>
-
-          <div className="flex gap-[3px]">
-            {[0, 1, 2, 3, 4].map((level) => (
-              <div
-                key={level}
-                className="rounded-[2px]"
-                style={{
-                  width: `${CELL_SIZE}px`,
-                  height: `${CELL_SIZE}px`,
-                  backgroundColor:
-                    level === 0
-                      ? "#121826"
-                      : shade(accent, LEVEL_ALPHAS[level]),
-                }}
-              />
-            ))}
-          </div>
-
-          <span className="font-mono text-xs text-[#9AA8C7]">More</span>
+      {total===0 && <p className="mt-2 text-xs leading-relaxed text-[#A8B9D4]">{emptyMessage}</p>}
+      <div className="mt-3 flex flex-wrap items-center justify-between gap-3 border-t border-[#2B3A52] pt-3 text-xs text-[#A8B9D4] sm:text-[10px]">
+        {footnote ? <p>{footnote}</p> : <span>{calendar.startKey} / {calendar.endKey}</span>}
+        <div aria-hidden="true" className="flex items-center gap-1.5">
+          <span>Less</span>
+          {[0,1,2,3,4].map(level=><span key={level} className="size-2.5 border border-[#32435D]" style={{backgroundColor:level===0?"#121826":shade(accent,LEVEL_ALPHAS[level])}} />)}
+          <span>More</span>
         </div>
       </div>
-    </div>
+    </section>
   );
 }

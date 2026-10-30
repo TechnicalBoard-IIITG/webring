@@ -84,7 +84,7 @@ async function buildGithubBoard(
   week: ReadonlySet<string>,
 ): Promise<LeaderboardBoard> {
   const results = await mapWithConcurrency(
-    members,
+    members.filter(m=>m.github),
     GITHUB_CONCURRENCY,
     async (member) => ({
       member,
@@ -112,7 +112,7 @@ async function buildGithubBoard(
     "github",
     "contributions",
     `last ${WEEK_DAYS} days`,
-    members.length,
+    members.filter(m=>m.github).length,
     unavailable,
     candidates,
   );
@@ -206,17 +206,20 @@ async function buildCodeforcesBoard(
 
 export async function buildLeaderboard(
   members: readonly Member[],
+  platform?: LeaderboardBoardId,
 ): Promise<LeaderboardData> {
   const week = new Set(recentDateKeys(WEEK_DAYS));
 
-  const [github, leetcode, codeforces] = await Promise.all([
-    buildGithubBoard(members, week),
-    buildLeetCodeBoard(members, week),
-    buildCodeforcesBoard(members),
-  ]);
+  const builders = {
+    github:()=>buildGithubBoard(members,week),
+    leetcode:()=>buildLeetCodeBoard(members,week),
+    codeforces:()=>buildCodeforcesBoard(members),
+  };
+  const selected:LeaderboardBoardId[]=platform?[platform]:['github','leetcode','codeforces'];
+  const boards=await Promise.all(selected.map(id=>builders[id]()));
 
   return {
-    boards: [github, leetcode, codeforces],
+    boards,
     members: members.length,
     updatedAt: new Date().toISOString(),
   };

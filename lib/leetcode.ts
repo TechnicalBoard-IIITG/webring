@@ -9,7 +9,7 @@ const CACHE_TTL_MS = 20 * 60 * 1000;
 const FAILURE_CACHE_TTL_MS = 60 * 1000;
 
 const PROFILE_QUERY = `
-  query userProfile($username: String!) {
+  query userProfile($username: String!, $previousYear: Int!) {
     matchedUser(username: $username) {
       submitStatsGlobal {
         acSubmissionNum {
@@ -21,6 +21,9 @@ const PROFILE_QUERY = `
       userCalendar {
         streak
         totalActiveDays
+        submissionCalendar
+      }
+      previousCalendar: userCalendar(year: $previousYear) {
         submissionCalendar
       }
     }
@@ -49,38 +52,31 @@ interface ProfileResponse {
         totalActiveDays?: number;
         submissionCalendar?: string;
       } | null;
+      previousCalendar?: { submissionCalendar?: string } | null;
     } | null;
   } | null;
 
   errors?: unknown;
 }
 
-function parseCalendar(raw?: string): ActivityDay[] {
-  if (!raw) return [];
-
-  try {
-    const calendar = JSON.parse(raw) as Record<string, unknown>;
-
-    return Object.entries(calendar)
-      .flatMap(([timestamp, count]) => {
-        const seconds = Number(timestamp);
-        const value = Number(count);
-
-        if (!Number.isFinite(seconds) || !Number.isFinite(value)) return [];
-
-        return [{ date: timestampToDateKey(seconds), count: value }];
-      })
-      .sort((a, b) => a.date.localeCompare(b.date));
-  } catch {
-    return [];
+export function parseLeetCodeCalendar(raw: string): ActivityDay[] {
+  const calendar:unknown = JSON.parse(raw);
+  if(!calendar||typeof calendar!=='object'||Array.isArray(calendar))throw Error('Invalid LeetCode calendar');
+  const days=new Map<string,number>();
+  for(const [timestamp,count] of Object.entries(calendar)){
+    const seconds=Number(timestamp);
+    if(!Number.isSafeInteger(seconds)||typeof count!=='number'||!Number.isSafeInteger(count)||count<0)throw Error('Invalid LeetCode activity');
+    const date=timestampToDateKey(seconds);
+    days.set(date,(days.get(date)||0)+count);
   }
+  return [...days].map(([date,count])=>({date,count})).sort((a,b)=>a.date.localeCompare(b.date));
 }
 
 export function getLeetCodeProfile(
   username: string,
 ): Promise<ProviderResult<LeetCodeProfile>> {
   return cached(
-    `leetcode:profile:${username.toLowerCase()}`,
+    `leetcode:profile:${new Date().getUTCFullYear()}:${username.toLowerCase()}`,
     CACHE_TTL_MS,
     async () => {
       try {
@@ -92,7 +88,7 @@ export function getLeetCodeProfile(
           },
           body: JSON.stringify({
             query: PROFILE_QUERY,
-            variables: { username },
+            variables: { username, previousYear:new Date().getUTCFullYear()-1 },
           }),
           timeoutMs: 10_000,
         });
@@ -109,6 +105,11 @@ export function getLeetCodeProfile(
         if (!user) {
           return { ok: false, reason: "not-found" };
         }
+        // An absent calendar is a provider failure, not a year of zero submissions.
+        if(typeof user.userCalendar?.submissionCalendar!=='string')return {ok:false,reason:'unavailable'};
+        const calendar=new Map<string,number>();
+        for(const day of parseLeetCodeCalendar(user.previousCalendar?.submissionCalendar || '{}'))calendar.set(day.date,day.count);
+        for(const day of parseLeetCodeCalendar(user.userCalendar.submissionCalendar))calendar.set(day.date,day.count);
 
         const stats = user.submitStatsGlobal?.acSubmissionNum ?? [];
         const countFor = (difficulty: string) =>
@@ -123,7 +124,7 @@ export function getLeetCodeProfile(
             hard: countFor("Hard"),
             streak: user.userCalendar?.streak ?? 0,
             totalActiveDays: user.userCalendar?.totalActiveDays ?? 0,
-            calendar: parseCalendar(user.userCalendar?.submissionCalendar),
+            calendar: [...calendar].map(([date,count])=>({date,count})).sort((a,b)=>a.date.localeCompare(b.date)),
           },
         };
       } catch {
