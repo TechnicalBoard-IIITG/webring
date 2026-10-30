@@ -3,7 +3,7 @@ import type { Prisma } from '@prisma/client';
 import { z } from 'zod';
 import { prisma } from '../lib/db.js';
 import { requireAuth,requireAdmin } from '../middleware/auth.js';
-import { githubRequest,repositoryData } from '../lib/github.js';
+import { githubRequest,repositoryData,refreshCommunityRepositories } from '../lib/github.js';
 import { repositoryQuery,nominationSchema } from '../lib/repository-query.js';
 import { recentPopularRepositoryIds } from '../lib/repository-selection.js';
 export const repositoriesRouter=Router();
@@ -12,6 +12,7 @@ const include={members:{where:association,select:{source:true,member:{select:{id
 
 repositoriesRouter.get('/',async(req,res,next)=>{try{
  const q=repositoryQuery.parse(req.query);
+ const refresh=q.live==='true'?await refreshCommunityRepositories({member:q.member,year:q.year}):undefined;
  const ids=await recentPopularRepositoryIds({member:q.member,year:q.year,forks:q.forks==='true'});
  const where:Prisma.GitHubRepositoryWhereInput={
   id:{in:ids},
@@ -27,7 +28,8 @@ repositoriesRouter.get('/',async(req,res,next)=>{try{
   prisma.gitHubRepository.aggregate({where,_sum:{stars:true,forks:true},_max:{fetchedAt:true},_min:{fetchedAt:true}}),
   prisma.gitHubRepository.findMany({where:{id:{in:ids},language:{not:null}},select:{language:true},distinct:['language'],orderBy:{language:'asc'}})
  ]);
- res.json({items,total,page:q.page,limit:q.limit,stats:{stars:aggregate._sum.stars||0,forks:aggregate._sum.forks||0},fetchedAt:aggregate._max.fetchedAt,oldestFetchedAt:aggregate._min.fetchedAt,languages:languages.map(r=>r.language)});
+ res.setHeader('Cache-Control','no-store');
+ res.json({items,total,page:q.page,limit:q.limit,stats:{stars:aggregate._sum.stars||0,forks:aggregate._sum.forks||0},fetchedAt:aggregate._max.fetchedAt,oldestFetchedAt:aggregate._min.fetchedAt,languages:languages.map(r=>r.language),refresh});
  }catch(error){next(error)}});
 
 repositoriesRouter.post('/nominations',requireAuth,async(req,res,next)=>{try{

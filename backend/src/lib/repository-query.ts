@@ -7,7 +7,8 @@ export const repositoryQuery=z.object({
  language:z.string().trim().max(100).optional(),
  search:z.string().trim().max(100).optional(),
  forks:z.enum(['true','false']).default('false'),
- sort:z.enum(['stars','forks','pushed']).default('stars')
+ sort:z.enum(['stars','forks','pushed']).default('stars'),
+ live:z.enum(['true','false']).default('false')
 });
 export const nominationSchema=z.object({
  fullName:z.string().trim().regex(/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/).max(200).transform(v=>v.toLowerCase()),

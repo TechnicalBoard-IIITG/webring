@@ -58,7 +58,7 @@ Backups, environment files, uploads and dependency/build directories stay out of
 - GitHub and LeetCode leaderboards use the last seven UTC days; Codeforces uses current ratings. Missing provider data is shown as unavailable. The frontend and API need outbound HTTPS access.
 - The repository view selects up to two popular repositories per member pushed in the last 30 days, excluding profile README repositories and, by default, forks.
 - GitHub languages use a cached sample of up to ten original, active public repositories under 100 MB. Percentages describe code-byte shares; the sidebar excludes HTML and CSS. Generated or vendored code may be included by GitHub's language API.
-- Repository discovery runs automatically at API startup and checks for due work every minute. Successful snapshots expire after one hour; failed refreshes back off. `npm run sync:github` in `backend/` also supports a separate scheduler. A server-only `GITHUB_TOKEN` raises GitHub's public API rate limit. The open repositories tab reloads hourly. Large directories drain through a bounded queue, so refresh completion depends on GitHub limits and job duration.
+- Repository discovery runs automatically at API startup and checks for due work every minute. Successful snapshots expire after one hour; failed refreshes back off. `npm run sync:github` in `backend/` also supports a separate scheduler. A server-only `GITHUB_TOKEN` raises GitHub's public API rate limit. Opening the community repositories tab requests fresh GitHub discovery and keeps checking every minute while visible; active refreshes are polled every three seconds. The refresh button also requests fresh discovery. Successful accounts are rechecked at most once a minute, while provider errors retain their backoff. Existing results stay visible during refreshes. Large directories drain through a bounded queue, so refresh completion depends on GitHub limits and job duration.
 - Banner uploads accept GIF, PNG, JPEG and WebP up to 5 MB. Production requires persistent R2/S3-compatible storage; configure the placeholders in `backend/.env.banner.example`. Preserve existing banner URLs and files when moving hosts.
 
 For production, use HTTPS and keep all credentials on the server.
@@ -119,6 +119,16 @@ Cache misses distribute public member reads across replicas. Before using a repl
 Redeploy Render after setting these values. Verify repeated `/api/members?limit=60&page=1` and `/api/members/<id>` requests, then edit a profile and confirm the next public response reflects the change. Test once with Redis unavailable and once with a replica unavailable: public reads should still succeed through PostgreSQL/the primary. Live Redis and replica infrastructure must be provisioned separately; adding environment variables alone does not create those services.
 
 For hourly GitHub refreshes when the web service can sleep, configure an external hourly job (`0 * * * *`) with the backend working directory and `npm run sync:github`, using the same primary database and `GITHUB_TOKEN`. An in-process timer cannot run while Render suspends the service. Existing successful six-hour snapshots are eligible once they are an hour old; failure backoff is retained.
+
+## Live community repositories
+
+The community tab uses `/api/repositories?live=true` to enqueue current GitHub discovery for public members in the selected member/batch scope. This includes accounts without existing repository records, so newly created work can appear. Sorting, language/search filters and pagination apply to the updated records with the existing two-recent-repositories-per-member policy.
+
+Responses include `refresh.pending`, `refresh.deferred`, and `refresh.intervalSeconds`. The UI polls while refreshes are running, reloads once a minute afterward, and pauses requests in hidden tabs. A manual refresh bypasses browser snapshots. Scheduled hourly discovery continues when the tab is closed. The listing request returns available results without waiting for all GitHub calls; changes arrive progressively as the bounded workers finish.
+
+A live refresh checks GitHub rather than merely re-reading the stored snapshot. Successful member checks are coalesced to a one-minute interval and database claims prevent duplicate workers. Conditional ETag requests validate unchanged GitHub responses and reduce authenticated primary-rate-limit usage. Keep a server-only `GITHUB_TOKEN` configured for useful live coverage; GitHub failures/rate limits are displayed as deferred updates with the last available results retained. This is periodic live refresh, not an event/webhook stream or a promise of instant propagation; GitHub limits and queue duration affect freshness.
+
+Repository cards use each language's color for the tinted background, border, hover/focus border and title. Unknown languages use the neutral fallback color.
 
 ## Rate limiting and multiple API instances
 

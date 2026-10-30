@@ -5,22 +5,26 @@ export const githubRepositorySchema=z.object({id:z.number().int().positive().saf
 type GitHubRepository=z.infer<typeof githubRepositorySchema>;
 
 export const REPOSITORY_TTL = 60 * 60 * 1000;
-export function repositoryRefreshDue(now = new Date()): Prisma.MemberGitHubSummaryWhereInput {
+export const LIVE_REPOSITORY_TTL = 60 * 1000;
+export function repositoryRefreshDue(now = new Date(), live=false): Prisma.MemberGitHubSummaryWhereInput {
  return {OR:[
   {nextAttemptAt:{lte:now}},
   // Bring snapshots created with the old six-hour TTL onto the hourly cadence.
-  {status:'ready',fetchedAt:{lte:new Date(now.getTime()-REPOSITORY_TTL)}},
+  {status:'ready',fetchedAt:{lte:new Date(now.getTime()-(live?LIVE_REPOSITORY_TTL:REPOSITORY_TTL))}},
  ]};
 }
 const RETRY = 30 * 60 * 1000;
 const MAX_REPOS = 100;
 let blockedUntil = 0;
+const conditionalResponses=new Map<string,{etag:string;data:unknown}>();
 export class GitHubError extends Error {
  constructor(public status:number, public retryAt=Date.now()+RETRY) {super(`GitHub returned ${status}`)}
 }
-export async function githubRequest<T=unknown>(path:string):Promise<T> {
+export async function githubRequest<T=unknown>(path:string,options:{conditional?:boolean}={}):Promise<T> {
  if(Date.now()<blockedUntil)throw new GitHubError(429,blockedUntil);
- const response=await fetch(`https://api.github.com${path}`,{headers:{Accept:'application/vnd.github+json','X-GitHub-Api-Version':'2022-11-28','User-Agent':'IIITG-Index',...(process.env.GITHUB_TOKEN?{Authorization:`Bearer ${process.env.GITHUB_TOKEN}`}:{})},signal:AbortSignal.timeout(15000),redirect:'error'});
+ const previous=options.conditional?conditionalResponses.get(path):undefined;
+ const response=await fetch(`https://api.github.com${path}`,{headers:{Accept:'application/vnd.github+json','X-GitHub-Api-Version':'2022-11-28','User-Agent':'IIITG-Index',...(previous?{'If-None-Match':previous.etag}:{}),...(process.env.GITHUB_TOKEN?{Authorization:`Bearer ${process.env.GITHUB_TOKEN}`}:{})},signal:AbortSignal.timeout(15000),redirect:'error'});
+ if(response.status===304&&previous)return previous.data as T;
  if(!response.ok){
   if(response.status===403||response.status===429){
    const reset=Number(response.headers.get('x-ratelimit-reset'))*1000;
@@ -29,24 +33,30 @@ export async function githubRequest<T=unknown>(path:string):Promise<T> {
   }
   throw new GitHubError(response.status,blockedUntil||Date.now()+RETRY);
  }
- return response.json();
+ const data=await response.json() as T;
+ const etag=response.headers.get('etag');
+ if(options.conditional&&etag){
+  if(conditionalResponses.size>=200)conditionalResponses.delete(conditionalResponses.keys().next().value!);
+  conditionalResponses.set(path,{etag,data});
+ }
+ return data;
 }
 export function repositoryData(input:unknown) {
  const repo=githubRepositorySchema.parse(input);
  if(repo.private || !Number.isSafeInteger(repo.id) || !/^[\w.-]+\/[\w.-]+$/.test(repo.full_name))throw Error('Invalid public repository');
  return {githubId:String(repo.id),fullName:repo.full_name as string,ownerLogin:repo.owner.login as string,htmlUrl:`https://github.com/${repo.full_name}`,description:typeof repo.description==='string'?repo.description:null,language:typeof repo.language==='string'?repo.language:null,stars:repo.stargazers_count as number,forks:repo.forks_count as number,pushedAt:repo.pushed_at?new Date(repo.pushed_at):null,isFork:Boolean(repo.fork),isArchived:Boolean(repo.archived),isPrivate:false,fetchedAt:new Date()};
 }
-export async function syncMember(memberId:string) {
+export async function syncMember(memberId:string, live=false) {
  const member=await prisma.memberProfile.findUnique({where:{id:memberId}});
  if(!member?.github || !member.isPublic)return;
  const previous=await prisma.memberGitHubSummary.upsert({where:{memberId},create:{memberId,github:member.github},update:{}});
  const now=new Date();
- const claimed=await prisma.memberGitHubSummary.updateMany({where:{memberId,...repositoryRefreshDue(now)},data:{status:'refreshing',attemptedAt:now,nextAttemptAt:new Date(Date.now()+RETRY)}});
+ const claimed=await prisma.memberGitHubSummary.updateMany({where:{memberId,...repositoryRefreshDue(now,live)},data:{status:'refreshing',attemptedAt:now,nextAttemptAt:new Date(Date.now()+RETRY)}});
  if(!claimed.count)return;
  try {
   const username=encodeURIComponent(member.github);
   // Discover up to 100 repos; publish metadata before fetching optional top-two details.
-  const repos=await githubRequest<GitHubRepository[]>(`/users/${username}/repos?type=owner&sort=pushed&per_page=${MAX_REPOS}`);
+  const repos=await githubRequest<GitHubRepository[]>(`/users/${username}/repos?type=owner&sort=pushed&per_page=${MAX_REPOS}`,{conditional:live});
   const publicRepos=repos.filter(r=>!r.private);
   // Upsert independent metadata without holding a transaction across hundreds of queries.
   const repositoryIds:string[]=[];
@@ -68,10 +78,10 @@ export async function syncMember(memberId:string) {
   let detailError:string|null=null;
   let activity=previous.github===member.github?previous.activity:[];
   try{
-   if(process.env.GITHUB_TOKEN){
+   if(process.env.GITHUB_TOKEN&&!live){
     const events=z.array(z.object({id:z.string(),type:z.string(),public:z.boolean(),repo:z.object({name:z.string().regex(/^[\w.-]+\/[\w.-]+$/)}),created_at:z.string()})).parse(await githubRequest(`/users/${username}/events/public?per_page=10`));
     activity=events.filter(e=>e.public).map(e=>({id:e.id,type:e.type,repository:e.repo.name,createdAt:e.created_at}));
-   }else detailError='Public activity details are currently unavailable.';
+   }else if(!live)detailError='Public activity details are currently unavailable.';
   }catch{detailError='Repositories updated; public activity is temporarily unavailable.'}
   await prisma.memberGitHubSummary.updateMany({where:{memberId,github:member.github},data:{status:'ready',activity:activity as Prisma.InputJsonValue,error:detailError}});
  } catch(error){
@@ -83,14 +93,29 @@ export async function syncMember(memberId:string) {
 
 // Small bounded in-process queue; DB claim prevents duplicate work across processes.
 const queued=new Set<string>();
-const queue:string[]=[];
+const queue:{id:string;live:boolean}[]=[];
 let running=0;
-export function enqueueMember(id:string) {
+export function enqueueMember(id:string, live=false) {
  if(queued.has(id)||queue.length>=100)return;
- queued.add(id);queue.push(id);pump();
+ queued.add(id);queue.push({id,live});pump();
 }
 function pump(){
- while(running<2&&queue.length){const id=queue.shift()!;running++;void syncMember(id).catch(()=>console.error({event:'github_sync_failed',memberId:id})).finally(()=>{running--;queued.delete(id);pump()})}
+ while(running<2&&queue.length){const {id,live}=queue.shift()!;running++;void syncMember(id,live).catch(()=>console.error({event:'github_sync_failed',memberId:id})).finally(()=>{running--;queued.delete(id);pump()})}
+}
+
+// Request-driven discovery refreshes all members in the selected scope, including
+// members with no stored repositories. Never wait for GitHub on the listing request.
+export async function refreshCommunityRepositories(options:{member?:string;year?:number}={}) {
+ const now=new Date();
+ const scope:Prisma.MemberProfileWhereInput={isPublic:true,github:{not:null},...(options.member?{id:options.member}:{}),...(options.year?{year:options.year}:{})};
+ const due:Prisma.MemberProfileWhereInput={...scope,OR:[{githubSummary:null},{githubSummary:repositoryRefreshDue(now,true)}]};
+ const [members,pending,deferred]=await Promise.all([
+  prisma.memberProfile.findMany({where:due,select:{id:true},orderBy:[{githubSummary:{fetchedAt:{sort:'asc',nulls:'first'}}},{id:'asc'}],take:100}),
+  prisma.memberProfile.count({where:{...scope,OR:[{githubSummary:null},{githubSummary:repositoryRefreshDue(now,true)},{githubSummary:{status:'refreshing'}}]}}),
+  prisma.memberProfile.count({where:{...scope,githubSummary:{status:{in:['stale','unavailable']},nextAttemptAt:{gt:now}}}}),
+ ]);
+ for(const member of members)enqueueMember(member.id,true);
+ return {pending,deferred,intervalSeconds:LIVE_REPOSITORY_TTL/1000};
 }
 
 let warming=false;
