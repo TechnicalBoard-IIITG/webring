@@ -18,6 +18,7 @@ import { bannersRouter } from './routes/banners.js';
 import { githubRouter } from './routes/github.js';
 import { repositoriesRouter } from './routes/repositories.js';
 import { MulterError } from 'multer';
+import { BannerStorageError } from './lib/storage.js';
 const PgStore=connectPgSimple(session);
 const pool=new Pool({connectionString:config.DATABASE_URL,max:4,connectionTimeoutMillis:30000,idleTimeoutMillis:30000});
 export const limits=createApiLimits({api:config.RATE_LIMIT_API,auth:config.RATE_LIMIT_AUTH,write:config.RATE_LIMIT_WRITE,upload:config.RATE_LIMIT_UPLOAD});
@@ -63,11 +64,16 @@ app.use('/api/auth',authRouter);
 app.use('/api/profile',profileRouter);
 app.use('/api/admin',adminRouter);
 app.use((_req,res)=>res.status(404).json({error:'Route not found'}));
-const handleError:ErrorRequestHandler=(err,_req,res,_next)=>{
+export const handleError:ErrorRequestHandler=(err,_req,res,_next)=>{
  void _next;
  if(err instanceof ZodError){res.status(400).json({error:'Validation failed',issues:err.flatten()});return;}
  if(err instanceof MulterError){res.status(400).json({error:err.code==='LIMIT_FILE_SIZE'?'Banner exceeds 5 MB':'Invalid banner upload'});return;}
- console.error({event:'request_failed',name:err?.name,code:err?.code});
+ if(err instanceof BannerStorageError){
+  console.error({event:'banner_storage_failed',message:err.message,detail:err.detail,cause:err.cause instanceof Error?err.cause.message:err.cause});
+  res.status(503).json({error:err.message});
+  return;
+ }
+ console.error({event:'request_failed',name:err?.name,code:err?.code,message:err?.message,stack:err?.stack});
  res.status(500).json({error:'Internal server error'});
 };
 app.use(handleError);
