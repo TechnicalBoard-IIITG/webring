@@ -59,7 +59,7 @@ Backups, environment files, uploads and dependency/build directories stay out of
 - The repository view selects up to two popular repositories per member pushed in the last 30 days, excluding profile README repositories and, by default, forks.
 - GitHub languages use a cached sample of up to ten original, active public repositories under 100 MB. Percentages describe code-byte shares; the sidebar excludes HTML and CSS. Generated or vendored code may be included by GitHub's language API.
 - Repository discovery runs automatically at API startup and checks for due work every minute. Successful snapshots expire after one hour; failed refreshes back off. `npm run sync:github` in `backend/` also supports a separate scheduler. A server-only `GITHUB_TOKEN` raises GitHub's public API rate limit. Opening the community repositories tab requests fresh GitHub discovery and keeps checking every minute while visible; active refreshes are polled every three seconds. The refresh button also requests fresh discovery. Successful accounts are rechecked at most once a minute, while provider errors retain their backoff. Existing results stay visible during refreshes. Large directories drain through a bounded queue, so refresh completion depends on GitHub limits and job duration.
-- Banner uploads accept GIF, PNG, JPEG and WebP up to 5 MB. Production requires persistent R2/S3-compatible storage; configure the placeholders in `backend/.env.banner.example`. Preserve existing banner URLs and files when moving hosts.
+- Banner uploads accept GIF, PNG, JPEG and WebP up to 5 MB. Production requires persistent R2/S3-compatible storage; configure the placeholders in `backend/.env.banner.example`. The API validates banner storage at startup: with `NODE_ENV=production` it refuses to boot unless `BANNER_STORAGE=s3` and every required `S3_*`/`AWS_*` variable is set, and an upload that still fails returns `503` with an actionable message instead of a generic 500. Preserve existing banner URLs and files when moving hosts.
 
 For production, use HTTPS and keep all credentials on the server.
 
@@ -83,7 +83,18 @@ FRONTEND_URL=https://iiitg-index.vercel.app
 ALLOWED_ORIGINS=https://iiitg-index.vercel.app
 PUBLIC_API_URL=https://webring-xosu.onrender.com
 GOOGLE_CALLBACK_URL=https://iiitg-index.vercel.app/backend/api/auth/google/callback
+# Banner storage (required in production). See backend/.env.banner.example.
+BANNER_STORAGE=s3
+S3_REGION=auto
+S3_ENDPOINT=https://YOUR-ACCOUNT.r2.cloudflarestorage.com
+S3_BUCKET=YOUR-BUCKET
+S3_PUBLIC_URL=https://YOUR-PUBLIC-BANNER-DOMAIN
+S3_FORCE_PATH_STYLE=false
+AWS_ACCESS_KEY_ID=YOUR-ACCESS-KEY
+AWS_SECRET_ACCESS_KEY=YOUR-SECRET-KEY
 ```
+
+With `NODE_ENV=production`, the API refuses to start if `BANNER_STORAGE` is not `s3` or any required `S3_*`/`AWS_*` value is missing. This surfaces banner misconfiguration at deploy time instead of as a 500 on the first upload.
 
 Register that exact `GOOGLE_CALLBACK_URL` as an authorized redirect URI on the Google OAuth web client. Deploy the proxy code, rebuild Vercel with its production environment variables, and redeploy Render after updating its settings. Do not use the direct Render callback for this deployment: OAuth must start and finish through the frontend proxy to retain its session cookie.
 

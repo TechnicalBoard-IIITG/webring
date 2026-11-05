@@ -1,5 +1,9 @@
 import 'dotenv/config';
 import { z } from 'zod';
+
+// Required together whenever BANNER_STORAGE=s3.
+const s3Required = ['S3_BUCKET','S3_PUBLIC_URL','S3_REGION','AWS_ACCESS_KEY_ID','AWS_SECRET_ACCESS_KEY'] as const;
+
 const schema = z.object({
   NODE_ENV: z.enum(['development','test','production']).default('development'),
   PORT: z.coerce.number().int().positive().default(4000),
@@ -17,6 +21,43 @@ const schema = z.object({
   RATE_LIMIT_WRITE: z.coerce.number().int().positive().default(30),
   RATE_LIMIT_UPLOAD: z.coerce.number().int().positive().default(6),
   BOOTSTRAP_ADMIN_EMAILS: z.string().default(''),
+  // Local disk is development only. Production must use S3-compatible object storage.
+  BANNER_STORAGE: z.enum(['local','s3']).default('local'),
+  S3_BUCKET: z.string().optional(),
+  S3_PUBLIC_URL: z.string().url().optional(),
+  S3_REGION: z.string().optional(),
+  S3_ENDPOINT: z.string().url().optional().or(z.literal('')),
+  S3_FORCE_PATH_STYLE: z.enum(['true','false']).default('false'),
+  AWS_ACCESS_KEY_ID: z.string().optional(),
+  AWS_SECRET_ACCESS_KEY: z.string().optional(),
+}).superRefine((env, ctx) => {
+  if (env.BANNER_STORAGE !== 's3') {
+    if (env.NODE_ENV === 'production') {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['BANNER_STORAGE'],
+        message: 'Production requires BANNER_STORAGE=s3 with S3/R2 credentials; local disk storage is not persistent.',
+      });
+    }
+    return;
+  }
+  for (const name of s3Required) {
+    if (!env[name]) ctx.addIssue({code: z.ZodIssueCode.custom, path: [name], message: `${name} is required when BANNER_STORAGE=s3`});
+  }
+  if (env.S3_PUBLIC_URL) {
+    try {
+      if (new URL(env.S3_PUBLIC_URL).protocol !== 'https:') throw Error('Insecure URL');
+    } catch {
+      ctx.addIssue({code: z.ZodIssueCode.custom, path: ['S3_PUBLIC_URL'], message: 'S3_PUBLIC_URL must be a valid HTTPS URL'});
+    }
+  }
 });
-export const config = schema.parse(process.env);
+
+const parsed = schema.safeParse(process.env);
+if (!parsed.success) {
+  console.error('Invalid environment configuration:');
+  for (const issue of parsed.error.issues) console.error(`  - ${issue.path.join('.') || 'environment'}: ${issue.message}`);
+  throw new Error('Invalid environment configuration');
+}
+export const config = parsed.data;
 export const origins = config.ALLOWED_ORIGINS.split(',').map(s => s.trim()).filter(Boolean);
