@@ -44,6 +44,10 @@ const schema = z.object({
   for (const name of s3Required) {
     if (!env[name]) ctx.addIssue({code: z.ZodIssueCode.custom, path: [name], message: `${name} is required when BANNER_STORAGE=s3`});
   }
+  // R2's `auto` signing region only works with its account-specific S3 API endpoint.
+  if (env.S3_REGION === 'auto' && !env.S3_ENDPOINT) {
+    ctx.addIssue({code: z.ZodIssueCode.custom, path: ['S3_ENDPOINT'], message: 'S3_ENDPOINT is required when S3_REGION=auto (for example, the Cloudflare R2 endpoint).'});
+  }
   if (env.S3_PUBLIC_URL) {
     try {
       if (new URL(env.S3_PUBLIC_URL).protocol !== 'https:') throw Error('Insecure URL');

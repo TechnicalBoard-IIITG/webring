@@ -4,7 +4,7 @@ import { useState } from "react";
 import Image from "next/image";
 
 import SearchBar from "@/components/SearchBar";
-import MemberFilters from "@/components/MemberFilters";
+import MemberFilters, { ProfileFilters } from "@/components/MemberFilters";
 import MemberGrid from "@/components/MemberGrid";
 import YearFilter from "@/components/YearFilter";
 import Leaderboard from "@/components/Leaderboard";
@@ -156,25 +156,23 @@ export default function Home() {
 
         {activeTab === "directory" || activeTab === "linkedin" ? (
           <>
-            <SearchBar value={search} onChange={v=>{setSearch(v);setPage(1)}} />
-            <MemberFilters
-              technologies={technologies}
-              technology={tech}
-              onTechnologyChange={value=>{setTech(value);setPage(1)}}
-              sort={sort}
-              onSortChange={value=>{setSort(value);setPage(1)}}
+            <div className="mt-10 grid min-w-0 grid-cols-2 items-stretch gap-3 sm:flex sm:flex-wrap sm:items-center">
+              <SearchBar className="col-span-2 w-full sm:col-span-1 sm:w-80 sm:flex-none" value={search} onChange={v=>{setSearch(v);setPage(1)}} />
+              <MemberFilters
+                technologies={technologies}
+                technology={tech}
+                onTechnologyChange={value=>{setTech(value);setPage(1)}}
+                sort={sort}
+                onSortChange={value=>{setSort(value);setPage(1)}}
+              />
+            </div>
+            <ProfileFilters
               selectedPlatforms={platform}
               onPlatformsChange={value=>{setPlatform(value);setPage(1)}}
               canReset={Boolean(search || selectedYear !== "All" || tech || platform.length || sort !== "name")}
               onReset={reset}
             />
-
-            <YearFilter
-              members={allMembers}
-              availableYears={years}
-              value={selectedYear}
-              onChange={v=>{setSelectedYear(v);setPage(1)}}
-            />
+            <YearFilter members={allMembers} availableYears={years} value={selectedYear} onChange={v=>{setSelectedYear(v);setPage(1)}} />
 
             {error?<p role="alert" className="mt-6 font-mono text-sm text-[#E0A35B]">{error}</p>:loading?<p role="status" className="mt-6 font-mono text-sm text-[#9AA8C7]">Loading members...</p>:<>
             {!total&&<p className="mt-8 font-mono text-[#9AA8C7]">No members match these filters.</p>}

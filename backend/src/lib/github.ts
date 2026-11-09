@@ -30,6 +30,7 @@ export async function githubRequest<T=unknown>(path:string,options:{conditional?
    const reset=Number(response.headers.get('x-ratelimit-reset'))*1000;
    const retry=Number(response.headers.get('retry-after'))*1000+Date.now();
    blockedUntil=Math.max(Date.now()+RETRY,Number.isFinite(reset)?reset:0,Number.isFinite(retry)?retry:0);
+   console.warn({event:'github_api_rate_limited',status:response.status,retryAt:new Date(blockedUntil).toISOString(),authenticated:Boolean(process.env.GITHUB_TOKEN)});
   }
   throw new GitHubError(response.status,blockedUntil||Date.now()+RETRY);
  }
@@ -86,6 +87,8 @@ export async function syncMember(memberId:string, live=false) {
   await prisma.memberGitHubSummary.updateMany({where:{memberId,github:member.github},data:{status:'ready',activity:activity as Prisma.InputJsonValue,error:detailError}});
  } catch(error){
   const status=error instanceof GitHubError?error.status:0;
+  if(error instanceof GitHubError&&status!==403&&status!==429)console.warn({event:'github_repository_sync_deferred',status,retryAt:new Date(error.retryAt).toISOString()});
+  else if(!(error instanceof GitHubError))console.error({event:'github_repository_sync_failed',name:error instanceof Error?error.name:undefined,code:typeof error==='object'&&error!==null&&'code' in error?error.code:undefined,message:error instanceof Error?error.message:String(error)});
   if(status===404){await prisma.memberRepository.deleteMany({where:{memberId,source:'owner'}})}
   await prisma.memberGitHubSummary.update({where:{memberId},data:{status:previous.fetchedAt?'stale':'unavailable',error:status===404?'GitHub account unavailable':status===403||status===429?'GitHub rate limit; refresh deferred':'GitHub refresh unavailable',nextAttemptAt:new Date(error instanceof GitHubError?Math.max(error.retryAt,Date.now()+RETRY):Date.now()+RETRY)}});
  }

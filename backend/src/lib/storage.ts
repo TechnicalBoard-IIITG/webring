@@ -29,9 +29,15 @@ export async function storeBanner(ownerId: string, bytes: Buffer, mime: string) 
  if (process.env.BANNER_STORAGE === 's3') {
   const missing = s3Required.filter(name => !process.env[name]);
   if (missing.length) throw new BannerStorageError('Banner storage is not configured', `Missing ${missing.join(', ')}`);
-  const origin = new URL(process.env.S3_PUBLIC_URL!);
-  if (origin.protocol !== 'https:') throw new BannerStorageError('Banner storage is not configured', 'S3_PUBLIC_URL must use HTTPS');
-  const s3 = new S3Client({region:process.env.S3_REGION, endpoint:process.env.S3_ENDPOINT || undefined, forcePathStyle:process.env.S3_FORCE_PATH_STYLE === 'true'});
+  let origin: URL;
+  let s3: S3Client;
+  try {
+   origin = new URL(process.env.S3_PUBLIC_URL!);
+   if (origin.protocol !== 'https:') throw Error('S3_PUBLIC_URL must use HTTPS');
+   s3 = new S3Client({region:process.env.S3_REGION, endpoint:process.env.S3_ENDPOINT || undefined, forcePathStyle:process.env.S3_FORCE_PATH_STYLE === 'true'});
+  } catch (error) {
+   throw new BannerStorageError('Banner storage is not configured', describe(error), {cause:error});
+  }
   try {
    await s3.send(new PutObjectCommand({Bucket:process.env.S3_BUCKET, Key:key, Body:bytes, ContentType:mime, CacheControl:'public, max-age=31536000, immutable'}));
   } catch (error) {
