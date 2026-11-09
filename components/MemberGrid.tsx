@@ -14,7 +14,7 @@ export default function MemberGrid({
   codeforcesRatings,
 }: MemberGridProps) {
   return (
-    <div className="mt-10 grid grid-cols-1 gap-4 min-[360px]:grid-cols-2 sm:flex sm:gap-6 sm:flex-wrap sm:[&>*]:w-48">
+    <div className="mt-10 grid grid-cols-1 gap-4 min-[360px]:grid-cols-2 sm:grid-cols-3 sm:gap-6 lg:grid-cols-4 xl:grid-cols-5">
       {members.map((member) => (
         <MemberCard
           key={member.id || member.github || member.name}

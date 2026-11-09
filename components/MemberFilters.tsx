@@ -30,13 +30,13 @@ interface ProfileFiltersProps {
 const control = "mobile-target min-h-14 min-w-0 border border-[#2B3A52] bg-[#1A2233] px-3 py-3 font-mono text-base text-[#9AA8C7] transition-colors enabled:cursor-pointer enabled:hover:border-[#5B8CFF] enabled:hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#5B8CFF] disabled:cursor-not-allowed disabled:opacity-35 sm:text-sm";
 
 export default function MemberFilters({ technologies, technology, onTechnologyChange, sort, onSortChange }: MemberFiltersProps) {
-  return <div className="contents lg:flex lg:min-w-0 lg:flex-1 lg:gap-3">
+  return <div className="contents lg:grid lg:min-w-0 lg:flex-1 lg:grid-cols-2 lg:gap-3">
     <div className="col-span-1 min-w-0 w-full sm:flex-1">
       <Select
         ariaLabel="Technology filter"
         value={technology}
         onChange={onTechnologyChange}
-        className={`${control} w-full justify-between`}
+        className={`${control} w-full max-w-full justify-between sm:!min-w-0`}
         placeholder="All technologies"
         options={[
           { value: "", label: "All technologies" },
@@ -50,7 +50,7 @@ export default function MemberFilters({ technologies, technology, onTechnologyCh
         ariaLabel="Sort members"
         value={sort}
         onChange={onSortChange}
-        className={`${control} w-full justify-between`}
+        className={`${control} w-full max-w-full justify-between sm:!min-w-0`}
         options={[{ value: "name", label: "Name" }, { value: "batch", label: "Batch" }]}
       />
     </div>

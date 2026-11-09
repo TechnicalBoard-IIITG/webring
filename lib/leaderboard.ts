@@ -158,7 +158,7 @@ async function buildLeetCodeBoard(
       member,
       count,
       detail:
-        result.data.solved > 0
+        mode === "submissions" && result.data.solved > 0
           ? `${result.data.solved} solved total`
           : undefined,
       profileUrl: `https://leetcode.com/u/${encodeURIComponent(member.leetcode!)}/`,

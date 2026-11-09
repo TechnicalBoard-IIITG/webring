@@ -46,13 +46,12 @@ function LanguageBreakdown({ repository }: { repository: Repository }) {
   );
 }
 
-export default function ProjectShowcase({ years, account }: { years: number[]; account: Account }) {
+export default function ProjectShowcase({ years, account, onMemberClick }: { years: number[]; account: Account; onMemberClick: (memberId: string) => void }) {
   const hasProfile = Boolean(account?.profile);
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [year, setYear] = useState("");
   const [language, setLanguage] = useState("");
-  const [member, setMember] = useState("");
   const [sort, setSort] = useState("stars");
   const [page, setPage] = useState(1);
   const [reload, setReload] = useState(0);
@@ -77,7 +76,6 @@ export default function ProjectShowcase({ years, account }: { years: number[]; a
     if (debouncedSearch.trim()) query.set("search", debouncedSearch.trim());
     if (year) query.set("year", year);
     if (language) query.set("language", language);
-    if (member) query.set("member", member);
     setLoading(true);
     setError("");
     fetch(`${api}/api/repositories/showcase?${query}`, { cache: "no-store", signal: controller.signal })
@@ -90,7 +88,7 @@ export default function ProjectShowcase({ years, account }: { years: number[]; a
       .catch(reason => { if (!controller.signal.aborted) setError(reason instanceof Error ? reason.message : "Could not load the project showcase"); })
       .finally(() => { if (!controller.signal.aborted) setLoading(false); });
     return () => controller.abort();
-  }, [debouncedSearch, year, language, member, sort, page, reload]);
+  }, [debouncedSearch, year, language, sort, page, reload]);
 
   const loadPickerOptions = useCallback(async () => {
     if (!hasProfile) return;
@@ -170,7 +168,6 @@ export default function ProjectShowcase({ years, account }: { years: number[]; a
         <Select ariaLabel="Project showcase sort" value={sort} onChange={value => { setSort(value); setPage(1); }} className={`${control} col-span-2 w-full lg:col-span-1`} options={[{ value: "stars", label: "Total stars" }, { value: "forks", label: "Total forks" }, { value: "pushed", label: "Recently pushed" }]} />
       </div>
 
-      {member ? <p className="mt-3 text-xs">Filtering by member <button type="button" className="ml-1 text-[#8BC5FF] underline" onClick={() => { setMember(""); setPage(1); }}>Clear member</button></p> : null}
       {error ? <p role="alert" className="mt-5 text-sm text-[#E0A35B]">{error}</p> : null}
       {loading && !data ? <p role="status" className="mt-6 text-sm">Loading project showcase...</p> : null}
       {data ? <>
@@ -182,7 +179,7 @@ export default function ProjectShowcase({ years, account }: { years: number[]; a
               <div className="flex min-w-0 items-center gap-3">
                 {entry.member.github ? <Image unoptimized src={`https://github.com/${encodeURIComponent(entry.member.github)}.png?size=96`} alt="" width={48} height={48} className="size-12 shrink-0 rounded-full border border-[#40546E] object-cover" /> : <span className="flex size-12 shrink-0 items-center justify-center border border-[#40546E] bg-[#20314D] text-lg text-[#B8D6FF]">{entry.member.name.charAt(0).toUpperCase()}</span>}
                 <div className="min-w-0">
-                  <button type="button" className="block max-w-full truncate text-left text-lg font-bold text-[#F1F5FF] hover:text-[#8BC5FF]" onClick={() => { setMember(entry.member.id); setPage(1); }}>{entry.member.name}</button>
+                  <button type="button" className="block max-w-full cursor-pointer truncate text-left text-lg font-bold text-[#F1F5FF] hover:text-[#8BC5FF]" onClick={() => onMemberClick(entry.member.id)}>{entry.member.name}</button>
                   <p className="text-xs text-[#8593B2]">Batch {entry.member.year}</p>
                 </div>
               </div>
