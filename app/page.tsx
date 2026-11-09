@@ -56,8 +56,8 @@ export default function Home() {
   const [loading,setLoading]=useState(true);
   const [error,setError]=useState("");
   const [ready,setReady]=useState(false);
-  useEffect(()=>{const timer=setTimeout(()=>{const q=new URLSearchParams(location.search);setSearch(q.get('search')||'');setSelectedYear(q.get('year')?Number(q.get('year')):'All');setTech(q.get('tech')||'');setPlatform((q.get('platform')||'').split(',').filter(Boolean));setSort(q.get('sort')==='batch'?'batch':'name');const p=Number(q.get('page'));if(Number.isInteger(p)&&p>0&&p<=100000)setPage(p);const tab=q.get('tab');if(tab==='linkedin'||tab==='repositories'||tab==='leaderboard')setActiveTab(tab);setReady(true)},0);return()=>clearTimeout(timer)},[]);
-  useEffect(()=>{if(!ready)return;const controller=new AbortController();const timer=setTimeout(()=>{setLoading(true);setError('');const q=new URLSearchParams({paged:'1',limit:'60',page:String(page),sort});if(search.trim())q.set('search',search.trim());if(selectedYear!=='All')q.set('year',String(selectedYear));if(tech)q.set('tech',tech);const selected=[...new Set([...platform,...(activeTab==='linkedin'?['linkedin']:[])])];if(selected.length)q.set('platform',selected.join(','));const url=new URLSearchParams(q);url.delete('paged');url.delete('limit');url.set('tab',activeTab);history.replaceState(null,'',`?${url}`);fetch(`/api/members?${q}`,{signal:controller.signal}).then(async r=>{const data=await r.json();if(!r.ok)throw Error(data.error||'Directory unavailable');return data}).then(data=>{if(!controller.signal.aborted){setAllMembers(data.items);setYears(data.years);setTechnologies(data.technologies);setTotal(data.total);if(data.total&&page>Math.ceil(data.total/60))setPage(Math.ceil(data.total/60))}}).catch(e=>{if(!controller.signal.aborted)setError(e.message)}).finally(()=>{if(!controller.signal.aborted)setLoading(false)})},300);return()=>{clearTimeout(timer);controller.abort()}},[ready,search,selectedYear,tech,platform,sort,page,activeTab]);
+  useEffect(()=>{const timer=setTimeout(()=>{const tab=new URLSearchParams(location.search).get('tab');if(tab==='linkedin'||tab==='repositories'||tab==='leaderboard')setActiveTab(tab);setReady(true)},0);return()=>clearTimeout(timer)},[]);
+  useEffect(()=>{if(!ready)return;const controller=new AbortController();const timer=setTimeout(()=>{setLoading(true);setError('');const q=new URLSearchParams({paged:'1',limit:'60',page:String(page),sort});if(search.trim())q.set('search',search.trim());if(selectedYear!=='All')q.set('year',String(selectedYear));if(tech)q.set('tech',tech);const selected=[...new Set([...platform,...(activeTab==='linkedin'?['linkedin']:[])])];if(selected.length)q.set('platform',selected.join(','));const url=new URLSearchParams(q);url.delete('paged');url.delete('limit');if(platform.length)url.set('platform',[...new Set(platform)].join(','));else url.delete('platform');url.set('tab',activeTab);history.replaceState(null,'',`?${url}`);fetch(`/api/members?${q}`,{signal:controller.signal}).then(async r=>{const data=await r.json();if(!r.ok)throw Error(data.error||'Directory unavailable');return data}).then(data=>{if(!controller.signal.aborted){setAllMembers(data.items);setYears(data.years);setTechnologies(data.technologies);setTotal(data.total);if(data.total&&page>Math.ceil(data.total/60))setPage(Math.ceil(data.total/60))}}).catch(e=>{if(!controller.signal.aborted)setError(e.message)}).finally(()=>{if(!controller.signal.aborted)setLoading(false)})},300);return()=>{clearTimeout(timer);controller.abort()}},[ready,search,selectedYear,tech,platform,sort,page,activeTab]);
   const filteredMembers=allMembers;
   const openMember=async(memberId:string)=>{
     const cached=allMembers.find(member=>member.id===memberId);
@@ -67,6 +67,15 @@ export default function Home() {
       const response=await fetch(`${api}/api/members/${encodeURIComponent(memberId)}`,{cache:"no-store"});
       if(response.ok)setSelectedMember(await response.json() as Member);
     }catch{}
+  };
+  const changeTab=(tab:Tab)=>{
+    setActiveTab(tab);
+    setSearch("");
+    setSelectedYear("All");
+    setTech("");
+    setPlatform([]);
+    setSort("name");
+    setPage(1);
   };
   const control="mobile-target min-h-11 sm:min-h-0 border border-[#2B3A52] bg-[#1A2233] px-3 py-2 font-mono text-xs text-[#9AA8C7] transition-colors enabled:cursor-pointer enabled:hover:border-[#5B8CFF] enabled:hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#5B8CFF] disabled:cursor-not-allowed disabled:opacity-35";
 
@@ -159,7 +168,7 @@ export default function Home() {
             {tab:'leaderboard',label:'Leaderboard',Icon:Trophy,active:'border-[#FFA116] bg-[#2E2412] text-[#FFD18A]',inactive:'hover:border-[#FFA116] hover:bg-[#2E2412] hover:text-[#FFD18A]'},
             {tab:'repositories',label:'Repositories',Icon:GitFork,active:'border-[#62D6A7] bg-[#142D28] text-[#A2F0CF]',inactive:'hover:border-[#62D6A7] hover:bg-[#142D28] hover:text-[#A2F0CF]'},
             {tab:'linkedin',label:'LinkedIn',Icon:FaLinkedin,active:'border-[#38BDF8] bg-[#102D42] text-[#8CDEFF]',inactive:'hover:border-[#38BDF8] hover:bg-[#102D42] hover:text-[#8CDEFF]'}
-          ] as const).map(({tab,label,Icon,active,inactive})=><button key={tab} aria-pressed={activeTab===tab} onMouseEnter={()=>{if(tab==='repositories')void loadRepositories().catch(()=>{})}} onFocus={()=>{if(tab==='repositories')void loadRepositories().catch(()=>{})}} onClick={()=>{setActiveTab(tab);setPage(1)}} className={`mobile-target flex min-h-11 min-w-0 cursor-pointer items-center justify-center gap-1.5 border px-2.5 sm:min-h-0 py-2.5 font-mono text-xs font-semibold transition-colors sm:gap-2 sm:px-5 sm:text-sm duration-200 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-current ${activeTab===tab?active:`border-[#2B3A52] text-[#9AA8C7] ${inactive}`}`}><Icon size={14}/>{label}</button>)}
+          ] as const).map(({tab,label,Icon,active,inactive})=><button key={tab} aria-pressed={activeTab===tab} onMouseEnter={()=>{if(tab==='repositories')void loadRepositories().catch(()=>{})}} onFocus={()=>{if(tab==='repositories')void loadRepositories().catch(()=>{})}} onClick={()=>changeTab(tab)} className={`mobile-target flex min-h-11 min-w-0 cursor-pointer items-center justify-center gap-1.5 border px-2.5 sm:min-h-0 py-2.5 font-mono text-xs font-semibold transition-colors sm:gap-2 sm:px-5 sm:text-sm duration-200 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-current ${activeTab===tab?active:`border-[#2B3A52] text-[#9AA8C7] ${inactive}`}`}><Icon size={14}/>{label}</button>)}
         </div>
 
         {activeTab === "directory" || activeTab === "linkedin" ? (
@@ -174,10 +183,10 @@ export default function Home() {
                 onSortChange={value=>{setSort(value);setPage(1)}}
               />
             </div>
-            <ProfileFilters
+            {activeTab==='directory'?<ProfileFilters
               selectedPlatforms={platform}
               onPlatformsChange={value=>{setPlatform(value);setPage(1)}}
-            />
+            />:null}
             <YearFilter members={allMembers} availableYears={years} value={selectedYear} onChange={v=>{setSelectedYear(v);setPage(1)}} />
 
             {error&&!allMembers.length?<p role="alert" className="mt-6 font-mono text-sm text-[#E0A35B]">{error}</p>:loading&&!allMembers.length?<p role="status" className="mt-6 font-mono text-sm text-[#9AA8C7]">Loading members...</p>:<>
