@@ -30,6 +30,8 @@ export async function syncMemberLanguages(memberId:string){
   });
  }catch(error){
   const status=error instanceof GitHubError?error.status:0;
+  if(error instanceof GitHubError)console.warn({event:'github_language_sync_deferred',status,retryAt:new Date(error.retryAt).toISOString(),authenticated:Boolean(process.env.GITHUB_TOKEN)});
+  else console.error({event:'github_language_sync_failed',name:error instanceof Error?error.name:undefined,code:typeof error==='object'&&error!==null&&'code' in error?error.code:undefined,message:error instanceof Error?error.message:String(error)});
   await prisma.memberGitHubSummary.updateMany({where:{memberId,github:member.github},data:{languageError:status===403||status===429?'GitHub rate limit; language refresh deferred.':status===404?'GitHub account unavailable.':'GitHub languages are temporarily unavailable.',languageNextAttemptAt:new Date(error instanceof GitHubError?Math.max(error.retryAt,Date.now()+RETRY):Date.now()+RETRY)}});
  }
 }

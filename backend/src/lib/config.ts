@@ -21,8 +21,10 @@ const schema = z.object({
   RATE_LIMIT_WRITE: z.coerce.number().int().positive().default(30),
   RATE_LIMIT_UPLOAD: z.coerce.number().int().positive().default(6),
   BOOTSTRAP_ADMIN_EMAILS: z.string().default(''),
-  // Local disk is development only. Production must use S3-compatible object storage.
-  BANNER_STORAGE: z.enum(['local','s3']).default('local'),
+  // Production can disable banner uploads while S3-compatible storage is unavailable.
+  BANNER_STORAGE: z.enum(['local','s3','disabled']).default('local'),
+  // Explicit opt-in for temporary preview deployments without persistent storage.
+  ALLOW_EPHEMERAL_BANNER_STORAGE: z.enum(['true','false']).default('false'),
   S3_BUCKET: z.string().optional(),
   S3_PUBLIC_URL: z.string().url().optional(),
   S3_REGION: z.string().optional(),
@@ -31,18 +33,16 @@ const schema = z.object({
   AWS_ACCESS_KEY_ID: z.string().optional(),
   AWS_SECRET_ACCESS_KEY: z.string().optional(),
 }).superRefine((env, ctx) => {
+  if (env.BANNER_STORAGE === 'disabled') return;
   if (env.BANNER_STORAGE !== 's3') {
-    if (env.NODE_ENV === 'production') {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ['BANNER_STORAGE'],
-        message: 'Production requires BANNER_STORAGE=s3 with S3/R2 credentials; local disk storage is not persistent.',
-      });
-    }
     return;
   }
   for (const name of s3Required) {
     if (!env[name]) ctx.addIssue({code: z.ZodIssueCode.custom, path: [name], message: `${name} is required when BANNER_STORAGE=s3`});
+  }
+  // R2's `auto` signing region only works with its account-specific S3 API endpoint.
+  if (env.S3_REGION === 'auto' && !env.S3_ENDPOINT) {
+    ctx.addIssue({code: z.ZodIssueCode.custom, path: ['S3_ENDPOINT'], message: 'S3_ENDPOINT is required when S3_REGION=auto (for example, the Cloudflare R2 endpoint).'});
   }
   if (env.S3_PUBLIC_URL) {
     try {

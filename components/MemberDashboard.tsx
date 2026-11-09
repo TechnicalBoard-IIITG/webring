@@ -57,7 +57,7 @@ function HeaderLink({
       target="_blank"
       rel="noopener noreferrer"
       aria-label={label}
-      className="mobile-target flex h-11 min-w-11 items-center justify-center gap-2 border border-[#2B3A52] bg-[#1A2233] px-3 font-mono text-xs text-[#9AA8C7] transition-colors hover:border-[#5B8CFF] hover:text-[#F1F5FF] sm:h-8 sm:min-w-0 sm:justify-start"
+      className="mobile-target flex h-12 min-w-12 items-center justify-center gap-2 border border-[#2B3A52] bg-[#1A2233] px-4 font-mono text-sm text-[#9AA8C7] transition-colors hover:border-[#5B8CFF] hover:text-[#F1F5FF] sm:h-10 sm:min-w-0 sm:justify-start"
     >
       {icon}
       <span className="hidden sm:inline">{label}</span>
@@ -95,7 +95,7 @@ function TabList<T extends string>({
             aria-pressed={active === tab.id}
             aria-label={tab.label}
             className={`mobile-target cursor-pointer font-mono font-semibold transition-colors ${
-              compact ? "min-h-11 px-2 text-xs sm:min-h-0 sm:px-0 sm:text-[11px]" : "min-h-11 px-2 text-xs sm:min-h-0 sm:px-0 sm:text-sm"
+              compact ? "min-h-12 px-2 text-base sm:min-h-0 sm:px-0 sm:text-sm" : "min-h-12 px-2 text-sm sm:min-h-0 sm:px-0 sm:text-base"
             } ${
               active === tab.id
                 ? "text-[#F1F5FF]"
@@ -132,6 +132,7 @@ export default function MemberDashboard({
     member.techStack && member.techStack.length > 0
       ? member.techStack
       : [];
+  const biography = member.bio?.trim() || "";
 
   const githubUrl = `https://github.com/${member.github}`;
   const leetcodeUrl = member.leetcode
@@ -229,32 +230,32 @@ export default function MemberDashboard({
         role="dialog"
         aria-modal="true"
         aria-label={`${member.name}'s profile`}
-        className="relative h-[100dvh] max-h-[100dvh] w-full max-w-4xl overflow-y-auto overscroll-contain bg-[#1A2333] pb-[env(safe-area-inset-bottom)] sm:h-auto sm:max-h-[90dvh] sm:pb-0"
+        className="relative h-[100dvh] max-h-[100dvh] w-full max-w-6xl overflow-y-auto overscroll-contain bg-[#1A2333] pb-[env(safe-area-inset-bottom)] sm:h-auto sm:max-h-[90dvh] sm:pb-0"
       >
         <div className="sticky top-0 z-20 flex items-center justify-between gap-3 border-b border-[#2B3A52] bg-[#1A2333] px-4 pb-2 pt-[calc(env(safe-area-inset-top)+0.5rem)] sm:hidden">
           <p className="font-mono text-sm font-semibold text-[#D4DDF0]">Member profile</p>
-          <button type="button" onClick={onClose} aria-label="Close profile" className="flex size-11 shrink-0 items-center justify-center border border-[#40546E] bg-[#121826] text-[#D4DDF0] focus-visible:outline-2 focus-visible:outline-[#8BC5FF]"><X size={20} /></button>
+          <button type="button" onClick={onClose} aria-label="Close profile" className="flex size-12 shrink-0 items-center justify-center border border-[#40546E] bg-[#121826] text-[#D4DDF0] focus-visible:outline-2 focus-visible:outline-[#8BC5FF]"><X size={22} /></button>
         </div>
         <div className="absolute inset-x-4 top-[calc(env(safe-area-inset-top)+4.5rem)] z-10 flex flex-wrap justify-end gap-1.5 sm:inset-x-auto sm:right-[max(1rem,env(safe-area-inset-right))] sm:top-4 sm:gap-2">
           {member.github ? <HeaderLink
             href={githubUrl}
-            icon={<FaGithub size={15} />}
+            icon={<FaGithub size={18} />}
             label="GitHub"
           /> : null}
 
           {member.portfolio ? (
             <HeaderLink
               href={member.portfolio}
-              icon={<ExternalLink size={15} />}
+              icon={<ExternalLink size={18} />}
               label="Portfolio"
             />
           ) : null}
-          {member.linkedin ? <HeaderLink href={member.linkedin} icon={<FaLinkedin size={15} />} label="LinkedIn" /> : null}
+          {member.linkedin ? <HeaderLink href={member.linkedin} icon={<FaLinkedin size={18} />} label="LinkedIn" /> : null}
 
           {leetcodeUrl ? (
             <HeaderLink
               href={leetcodeUrl}
-              icon={<SiLeetcode size={15} />}
+              icon={<SiLeetcode size={18} />}
               label="LeetCode"
             />
           ) : null}
@@ -262,7 +263,7 @@ export default function MemberDashboard({
           {codeforcesUrl ? (
             <HeaderLink
               href={codeforcesUrl}
-              icon={<SiCodeforces size={15} />}
+              icon={<SiCodeforces size={18} />}
               label="Codeforces"
             />
           ) : null}
@@ -272,28 +273,28 @@ export default function MemberDashboard({
             aria-label="Close"
             className="mobile-target hidden size-8 cursor-pointer items-center justify-center border border-[#2B3A52] bg-[#1A2233] text-[#9AA8C7] transition-colors hover:border-[#5B8CFF] hover:text-[#F1F5FF] sm:flex"
           >
-            <X size={20} strokeWidth={2} />
+            <X size={24} strokeWidth={2} />
           </button>
         </div>
 
         <div
-          className="h-32 bg-[#111827] bg-cover bg-center sm:h-40"
+          className="h-40 bg-[#111827] bg-cover bg-center sm:h-52"
           style={{ backgroundImage: `url(${member.banner || background})` }}
         />
 
-        <div className="grid grid-cols-1 gap-7 p-5 sm:grid-cols-[160px_minmax(0,1fr)] sm:gap-8 sm:p-8">
-          <div className="grid min-w-0 grid-cols-[80px_minmax(0,1fr)] items-start gap-x-4 self-start sm:flex sm:flex-col sm:items-center">
+        <div className="grid grid-cols-1 gap-8 p-6 sm:grid-cols-[180px_minmax(0,1fr)] sm:gap-8 sm:p-8 lg:grid-cols-[208px_minmax(0,1fr)] lg:gap-10 lg:p-10">
+          <div className="grid min-w-0 grid-cols-[112px_minmax(0,1fr)] items-start gap-x-4 self-start sm:flex sm:flex-col sm:items-center">
             <NextImage
               src={member.github?`https://github.com/${encodeURIComponent(member.github)}.png`:"/favicon.ico"}
               alt={member.name}
-              width={96}
-              height={96}
+              width={160}
+              height={160}
               unoptimized
-              className="-mt-12 size-20 rounded-full border-4 border-[#1A2333] object-cover sm:-mt-16 sm:mb-4 sm:size-24"
+              className="-mt-16 size-28 rounded-full border-4 border-[#1A2333] object-cover sm:-mt-24 sm:mb-6 sm:size-40"
             />
 
             <div className="min-w-0 w-full sm:px-1">
-              <h2 className="break-words font-mono text-xl font-bold text-[#F1F5FF] [overflow-wrap:anywhere] sm:text-2xl">
+              <h2 className="break-words font-mono text-2xl font-bold text-[#F1F5FF] [overflow-wrap:anywhere] sm:text-3xl">
                 {member.name}
               </h2>
 
@@ -302,103 +303,51 @@ export default function MemberDashboard({
                 target="_blank"
                 rel="noopener noreferrer"
                 title={member.github}
-                className="block max-w-full truncate font-mono text-sm text-[#8593B2] transition-colors hover:text-[#F1F5FF]"
+                className="block max-w-full truncate font-mono text-base text-[#8593B2] transition-colors hover:text-[#F1F5FF]"
               >
                 {member.github}
               </a>
 
-              <p className="font-mono text-sm text-[#9AA8C7]">
+              <p className="font-mono text-base text-[#9AA8C7]">
                 Year: {member.year}
               </p>
             </div>
 
-            {activeStatsTab ? (
-              <div className="col-span-full mt-4 flex w-full shrink-0 flex-col items-center gap-2">
-                <TabList
-                  tabs={statsTabs}
-                  active={activeStatsTab}
-                  onChange={setStatsTab}
-                  compact
-                />
-
-                <div className="flex min-h-[120px] w-full items-start justify-center">
-                  {activeStatsTab === "leetcode" &&
-                  member.leetcode &&
-                  leetcodeUrl ? (
-                    <a
-                      href={leetcodeUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      title="Open LeetCode profile"
-                      className="flex flex-col items-center transition-opacity hover:opacity-80"
-                    >
-                      <LeetCodeRing username={member.leetcode} />
-                    </a>
-                  ) : null}
-
-                  {activeStatsTab === "codeforces" &&
-                  member.codeforces &&
-                  codeforcesUrl ? (
-                    <a
-                      href={codeforcesUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      title="Open Codeforces profile"
-                      className="flex flex-col items-center transition-opacity hover:opacity-80"
-                    >
-                      <CodeforcesStats handle={member.codeforces} />
-                    </a>
-                  ) : null}
-                </div>
-              </div>
-            ) : null}
-            {member.github ? <MemberLanguages key={`${member.id}:${member.github}`} memberId={member.id} github={member.github} /> : null}
           </div>
 
           <div className="min-w-0">
-            {member.bio?.trim() ? (
-              <section aria-label="About this member" className="mb-6">
-                <h3 className="mb-2 font-mono text-sm font-semibold text-[#F1F5FF]">About</h3>
-                <p className="whitespace-pre-wrap font-mono text-sm leading-relaxed text-[#C3D0E7] [overflow-wrap:anywhere]">
-                  {member.bio.trim()}
-                </p>
+            <div className={`mb-8 grid min-w-0 items-start gap-x-8 gap-y-6 ${member.github ? "lg:grid-cols-[minmax(0,1fr)_minmax(270px,0.8fr)]" : ""}`}>
+              {biography ? <section aria-label="About this member" className={`min-w-0 self-start ${member.github ? "lg:col-start-1 lg:row-start-1" : "lg:col-span-full"}`}>
+                <h3 className="mb-3 font-mono text-base font-semibold text-[#F1F5FF]">About</h3>
+                <p className="whitespace-pre-wrap font-mono text-base leading-relaxed text-[#C3D0E7] [overflow-wrap:anywhere]">{biography}</p>
+              </section> : null}
+              <section aria-label="Tech stack" className={`min-w-0 self-start ${member.github ? biography ? "lg:col-start-1 lg:row-start-2" : "lg:col-start-1 lg:row-start-1" : "lg:col-span-full"}`}>
+                <h3 className="mb-4 font-mono text-base font-semibold text-[#F1F5FF]">Tech Stack</h3>
+                <div className="flex min-w-0 flex-wrap content-start gap-2">
+                  {techStack.map(tech => <span key={tech} className="max-w-full break-words border border-[#2B3A52] bg-[#1A2233] px-3 py-1.5 font-mono text-sm text-[#9AA8C7] [overflow-wrap:anywhere]">{tech}</span>)}
+                </div>
               </section>
-            ) : null}
-            <h3 className="mb-3 font-mono text-sm font-semibold text-[#F1F5FF]">
-              Tech Stack
-            </h3>
-
-            <div className="mb-8 flex flex-wrap gap-2">
-              {techStack.map((tech) => (
-                <span
-                  key={tech}
-                  className="max-w-full break-words border border-[#2B3A52] bg-[#1A2233] px-2.5 py-1 font-mono text-xs text-[#9AA8C7] [overflow-wrap:anywhere]"
-                >
-                  {tech}
-                </span>
-              ))}
-            </div>
-
-            <TabList
-              tabs={activityTabs}
-              active={activeTab}
-              onChange={setActivityTab}
-            />
-
-            <div className="mt-4 min-h-[210px] min-w-0 text-[#9AA8C7]">
-              {activeTab === "github" && member.github ? (
-                <GitHubActivity username={member.github} />
-              ) : null}
-
-              {activeTab === "leetcode" && member.leetcode ? (
-                <LeetCodeCalendar username={member.leetcode} />
-              ) : null}
-
-              {activeTab === "codeforces" && member.codeforces ? (
-                <CodeforcesCalendar handle={member.codeforces} />
-              ) : null}
+              {member.github ? <div className={`min-w-0 self-start ${biography ? "lg:col-start-2 lg:row-start-1 lg:row-span-2" : "lg:col-start-2 lg:row-start-1"}`}>
+                <MemberLanguages key={`${member.id}:${member.github}`} memberId={member.id} github={member.github} />
+              </div> : null}
             </div>
           </div>
+
+            {activeStatsTab ? <section aria-label="Coding platform scores" className="order-2 min-w-0 sm:order-none sm:col-start-1">
+                <TabList tabs={statsTabs} active={activeStatsTab} onChange={setStatsTab} compact />
+                <div className="mt-5 flex min-h-[252px] min-w-0 items-start justify-center">
+                  {activeStatsTab === "leetcode" && member.leetcode && leetcodeUrl ? <a href={leetcodeUrl} target="_blank" rel="noopener noreferrer" title="Open LeetCode profile" className="flex flex-col items-center transition-opacity hover:opacity-80"><LeetCodeRing username={member.leetcode} /></a> : null}
+                  {activeStatsTab === "codeforces" && member.codeforces && codeforcesUrl ? <a href={codeforcesUrl} target="_blank" rel="noopener noreferrer" title="Open Codeforces profile" className="flex flex-col items-center transition-opacity hover:opacity-80"><CodeforcesStats handle={member.codeforces} /></a> : null}
+                </div>
+              </section> : null}
+            <section className={`order-1 min-w-0 text-[#9AA8C7] sm:order-none ${activeStatsTab ? "sm:col-start-2" : "sm:col-span-2"}`}>
+              <TabList tabs={activityTabs} active={activeTab} onChange={setActivityTab} />
+              <div className="mt-5 min-h-[252px] min-w-0">
+                {activeTab === "github" && member.github ? <GitHubActivity username={member.github} /> : null}
+                {activeTab === "leetcode" && member.leetcode ? <LeetCodeCalendar username={member.leetcode} /> : null}
+                {activeTab === "codeforces" && member.codeforces ? <CodeforcesCalendar handle={member.codeforces} /> : null}
+              </div>
+            </section>
         </div>
       </div>
     </div>

@@ -8,6 +8,7 @@ import { FaGithub, FaGoogle, FaLinkedin } from "react-icons/fa";
 import { SiCodeforces, SiLeetcode } from "react-icons/si";
 import MemberCard from "@/components/MemberCard";
 import MemberDashboard from "@/components/MemberDashboard";
+import Select from "@/components/Select";
 import { profilePreviewMember, profileValidationError } from "@/lib/profile-validation";
 import type { Member } from "@/types/member";
 
@@ -16,6 +17,11 @@ type Profile = Member & { isPublic?: boolean };
 type Account = { email: string; profile: Profile | null };
 type Notice = { message: string; tone: "info" | "success" | "error" };
 const empty: Profile = { name: "", year: new Date().getFullYear() + 3, github: "", portfolio: "", leetcode: "", codeforces: "", techStack: [], banner: "", bio: "", linkedin: "", isPublic: true };
+const techStackPresets = [
+  "C", "C++", "C/C++", "C#", "Java", "Kotlin", "Swift", "Go", "Rust", "Python", "JavaScript", "TypeScript", "PHP", "Ruby", "Dart",
+  "React", "Next.js", "Vue", "Angular", "Svelte", "React Native", "Flutter", "Node.js", "Express", "Spring Boot", ".NET", "Django", "Flask", "FastAPI",
+  "HTML", "CSS", "Tailwind CSS", "SQL", "PostgreSQL", "MySQL", "MongoDB", "Redis", "Firebase", "Supabase", "Docker", "Kubernetes", "Git", "Linux", "AWS", "Azure", "Google Cloud", "TensorFlow", "PyTorch",
+];
 const comparable = (p: Profile) => JSON.stringify([p.name, p.year, p.github || "", p.portfolio || "", p.leetcode || "", p.codeforces || "", p.linkedin || "", p.bio || "", p.techStack, p.isPublic ?? true]);
 const fieldStyle = "mobile-input w-full min-w-0 border border-[#34465F] bg-[#121826] px-3 py-3 text-base text-[#F1F5FF] sm:text-sm outline-none transition-colors placeholder:text-[#637391] hover:border-[#526784] focus:border-[#5B8CFF] focus:ring-1 focus:ring-[#5B8CFF]";
 const labelStyle = "mb-2 flex items-center gap-2 text-xs font-medium text-[#C3D0E7]";
@@ -71,6 +77,7 @@ export default function EditProfile() {
 
   const change = (field: keyof Profile, value: unknown) => setProfile(current => ({ ...current, [field]: value }));
   const addTag = () => { if (canAddTag) { change("techStack", [...tags, stack.trim()]); setStack(""); } };
+  const addPresetTag = (tag: string) => { if (tag && tags.length < 40 && !tags.some(value => value.toLowerCase() === tag.toLowerCase())) change("techStack", [...tags, tag]); };
 
   const save = async (event: FormEvent) => {
     event.preventDefault(); setSaving(true); setNotice(null);
@@ -166,8 +173,17 @@ export default function EditProfile() {
             </ProfileSection>
 
             <ProfileSection id="tech-stack" number="04" title="Tech stack" description="The tools and languages you want to share on your profile." icon={<Tags size={16} />}>
-              <div className="mb-4 flex min-h-9 flex-wrap items-start gap-2">
+              <div className="mb-4 flex min-h-9 flex-wrap items-center gap-2">
                 {tags.length ? tags.map(tag => <button type="button" key={tag} aria-label={`Remove ${tag}`} onClick={() => change("techStack", tags.filter(value => value !== tag))} className="mobile-target inline-flex min-h-11 max-w-full cursor-pointer items-center gap-2 border border-[#405B80] bg-[#20314D] px-2.5 py-1.5 text-xs text-[#B8D6FF] transition-colors hover:border-[#8BC5FF] hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#8BC5FF] sm:min-h-0"><span className="min-w-0 [overflow-wrap:anywhere]">{tag}</span><X size={11} aria-hidden className="shrink-0" /></button>) : <p className="py-2 text-xs text-[#8593B2]">No technologies added yet.</p>}
+                <Select
+                  ariaLabel="Quick add a popular technology"
+                  value=""
+                  placeholder="Quick Add"
+                  onChange={addPresetTag}
+                  disabled={tags.length >= 40}
+                  className="mobile-target inline-flex min-h-11 w-48 max-w-full cursor-pointer items-center justify-between gap-2 border border-[#405B80] bg-[#20314D] px-3 py-1.5 text-xs text-[#B8D6FF] transition-colors hover:border-[#8BC5FF] hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#8BC5FF] sm:min-h-0"
+                  options={techStackPresets.map(tag => ({ value: tag, label: tag, disabled: tags.some(value => value.toLowerCase() === tag.toLowerCase()) }))}
+                />
               </div>
               <label htmlFor="tech-input" className={`${labelStyle} justify-between`}>Add a technology <span className="text-[10px] font-normal text-[#8593B2]">{tags.length}/40</span></label>
               <div className="flex gap-2"><input id="tech-input" maxLength={60} className={fieldStyle} value={stack} onChange={event => setStack(event.target.value)} onKeyDown={event => { if (event.key === "Enter") { event.preventDefault(); addTag(); } }} placeholder="e.g. React" disabled={tags.length >= 40} /><button type="button" disabled={!canAddTag} onClick={addTag} className={buttonStyle}>Add</button></div>
@@ -202,7 +218,7 @@ export default function EditProfile() {
 
           <aside className="space-y-4 lg:sticky lg:top-6">
             <section aria-labelledby="preview-title" className="border border-[#2B3A52] bg-[#1A2233] p-5">
-              <h2 id="preview-title" className="mb-1 flex items-center gap-2 text-sm font-semibold"><Eye size={15} aria-hidden className="text-[#8BC5FF]" />Live preview</h2><p className="mb-5 text-[11px] leading-relaxed text-[#8593B2]">Your directory card, as you edit.</p>
+              <h2 id="preview-title" className="mb-1 flex items-center gap-2 text-sm font-semibold"><Eye size={15} aria-hidden className="text-[#8BC5FF]" />Preview</h2><p className="mb-5 text-[11px] leading-relaxed text-[#8593B2]">Your directory card, as you edit.</p>
               <div className="mx-auto w-44"><MemberCard member={previewMember} onClick={() => setPreview(true)} /></div>
               <button type="button" onClick={() => setPreview(true)} className={`${buttonStyle} mt-4 w-full`}><Eye size={13} aria-hidden />Open profile preview</button>
             </section>

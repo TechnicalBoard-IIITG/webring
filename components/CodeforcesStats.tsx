@@ -34,17 +34,17 @@ export default function CodeforcesStats({ handle }: CodeforcesStatsProps) {
   return (
     <div className="flex w-full flex-col items-center px-1 text-center font-mono">
       <p
-        className="rating-flow text-[42px] font-bold leading-none"
+        className="rating-flow text-[60px] font-bold leading-none"
         style={{ "--rating-color": color } as CSSProperties}
       >
         {data.rating ?? "—"}
       </p>
 
-      <p className="mt-2 text-base leading-none" style={{ color }}>
+      <p className="mt-2 text-xl leading-none" style={{ color }}>
         {rankLabel}
       </p>
 
-      <p className="mt-1 text-xs leading-none text-[#6E7F9E]">
+      <p className="mt-1 text-base leading-none text-[#6E7F9E]">
         {data.maxRating ? `max ${data.maxRating}` : "no rating yet"}
       </p>
     </div>

@@ -6,11 +6,11 @@ interface LeetCodeRingProps {
   username?: string;
 }
 
-const SIZE = 120;
+const SIZE = 168;
 const CENTER = SIZE / 2;
 
-const RADIUS = 46;
-const STROKE_WIDTH = 8;
+const RADIUS = 64;
+const STROKE_WIDTH = 12;
 
 const ARC_START = 135;
 const ARC_TOTAL = 270;
@@ -45,7 +45,7 @@ export default function LeetCodeRing({ username }: LeetCodeRingProps) {
 
   if (loading) {
     return (
-      <div className="size-[120px] animate-pulse rounded-full border border-[#2B3A52] bg-[#1A2233]" />
+      <div className="size-[168px] animate-pulse rounded-full border border-[#2B3A52] bg-[#1A2233]" />
     );
   }
 
@@ -98,7 +98,7 @@ export default function LeetCodeRing({ username }: LeetCodeRingProps) {
         x={CENTER}
         y={CENTER + 5}
         textAnchor="middle"
-        className="fill-[#F1F5FF] font-mono text-[30px] font-bold"
+        className="fill-[#F1F5FF] font-mono text-[42px] font-bold"
       >
         {solved}
       </text>
@@ -107,7 +107,7 @@ export default function LeetCodeRing({ username }: LeetCodeRingProps) {
         x={CENTER}
         y={CENTER + 20}
         textAnchor="middle"
-        className="fill-[#9AA8C7] font-mono text-[10px]"
+        className="fill-[#9AA8C7] font-mono text-[14px]"
       >
         Solved
       </text>
@@ -116,7 +116,7 @@ export default function LeetCodeRing({ username }: LeetCodeRingProps) {
         x={CENTER}
         y={SIZE - 8}
         textAnchor="middle"
-        className="fill-[#8593B2] font-mono text-[9px]"
+        className="fill-[#8593B2] font-mono text-[12px]"
       >
         {easy} E · {medium} M · {hard} H
       </text>
