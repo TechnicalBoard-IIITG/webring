@@ -34,6 +34,7 @@ model MemberProfile {
   leetcode       String?
   codeforces     String?
   techStack      String[] @default([])
+  featuredRepositoryIds String[] @default([])
   banner         String?
   bio            String?
   linkedin       String?

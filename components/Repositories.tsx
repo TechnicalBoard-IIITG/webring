@@ -4,10 +4,12 @@ import { cachedRepositories, defaultRepositoryQuery, loadRepositories, type Repo
 import { Star, GitFork, RefreshCw } from 'lucide-react';
 import RepositoryLanguage, { languageColor } from './RepositoryLanguage';
 import Select from './Select';
+import ProjectShowcase from './ProjectShowcase';
 const api=process.env.NEXT_PUBLIC_API_URL||'http://localhost:4000';
 const control='mobile-input mobile-target min-h-11 min-w-0 sm:min-h-0 border border-[#2B3A52] bg-[#1A2233] px-3 py-2 font-mono text-base text-[#9AA8C7] sm:text-xs transition-colors enabled:cursor-pointer enabled:hover:border-[#62D6A7] enabled:hover:text-[#A2F0CF] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#62D6A7] disabled:cursor-not-allowed disabled:opacity-35';
 type Nomination={id:string;fullName:string;reason:string;status:string;member?:{name:string}};
-export default function Repositories({years,account}:{years:number[];account:{role?:string}|null}){
+export default function Repositories({years,account}:{years:number[];account:{role?:string;profile?:{id?:string;github?:string|null}|null}|null}){
+ const [section,setSection]=useState<'community'|'showcase'>('community');
  const [data,setData]=useState<RepositoryPage|null>(()=>cachedRepositories(defaultRepositoryQuery,true));
  const [search,setSearch]=useState('');const [year,setYear]=useState('');const [language,setLanguage]=useState('');const [member,setMember]=useState('');const [sort,setSort]=useState('stars');const [forks,setForks]=useState(false);const [page,setPage]=useState(1);
  const [debouncedSearch,setDebouncedSearch]=useState('');
@@ -21,6 +23,7 @@ export default function Repositories({years,account}:{years:number[];account:{ro
  const [loading,setLoading]=useState(()=>!cachedRepositories(defaultRepositoryQuery,true));const [error,setError]=useState('');const [message,setMessage]=useState('');const [reviews,setReviews]=useState<Nomination[]>([]);
  useEffect(()=>()=>{if(manualRefreshTimer.current)clearTimeout(manualRefreshTimer.current)},[]);
  useEffect(()=>{
+  if(section!=='community')return;
   let active=true;
   const q=new URLSearchParams({page:String(page),search:debouncedSearch,sort,forks:String(forks)});if(year)q.set('year',year);if(language)q.set('language',language);if(member)q.set('member',member);
   const hit=cachedRepositories(q.toString(),true);
@@ -42,10 +45,17 @@ export default function Repositories({years,account}:{years:number[];account:{ro
   const visible=()=>{if(!document.hidden)void load();};
   document.addEventListener('visibilitychange',visible);
   return()=>{active=false;clearTimeout(timer);document.removeEventListener('visibilitychange',visible);};
- },[debouncedSearch,year,language,member,sort,forks,page,refreshAttempt]);
+ },[debouncedSearch,year,language,member,sort,forks,page,refreshAttempt,section]);
  useEffect(()=>{if(account?.role==='ADMIN')fetch(`${api}/api/repositories/nominations/review?status=${reviewStatus}`,{credentials:'include'}).then(r=>r.ok?r.json():[]).then(setReviews).catch(()=>setMessage('Could not load pending reviews'))},[account,reviewStatus]);
  const review=async(id:string,status:string)=>{try{const r=await fetch(`${api}/api/repositories/nominations/${id}`,{method:'PATCH',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({status})});if(!r.ok)throw Error('Review failed; repository must be public and GitHub available');setReviews(v=>v.filter(n=>n.id!==id));setMessage(`Nomination ${status}`)}catch(e){setMessage((e as Error).message)}};
- return <section className="mt-10 font-mono text-[#9AA8C7]"><h2 className="text-2xl font-bold text-[#F1F5FF]">Community repositories by IIITG members</h2>
+ const changeSection=(next:'community'|'showcase')=>{if(next==='showcase'){if(manualRefreshTimer.current)clearTimeout(manualRefreshTimer.current);manualRefreshTimer.current=null;manualRefreshStartedAt.current=null;setManualRefreshing(false);setUpdating(false);}setSection(next)};
+ return <section className="mt-10 font-mono text-[#9AA8C7] [&_button:not(:disabled)]:cursor-pointer">
+ <div role="tablist" aria-label="Repository sections" className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+  <button type="button" role="tab" aria-selected={section==='community'} onClick={()=>changeSection('community')} className={`mobile-target min-h-14 border-2 px-4 py-4 text-center font-mono text-sm font-bold tracking-wide transition-colors sm:text-base ${section==='community'?'border-[#62D6A7] bg-[#142D28] text-[#A2F0CF]':'border-[#2B3A52] bg-[#1A2233] text-[#9AA8C7] hover:border-[#62D6A7] hover:text-[#A2F0CF]'}`}>COMMUNITY REPOSITORIES</button>
+  <button type="button" role="tab" aria-selected={section==='showcase'} onClick={()=>changeSection('showcase')} className={`mobile-target min-h-14 border-2 px-4 py-4 text-center font-mono text-sm font-bold tracking-wide transition-colors sm:text-base ${section==='showcase'?'border-[#FFA116] bg-[#2E2412] text-[#FFD18A]':'border-[#2B3A52] bg-[#1A2233] text-[#9AA8C7] hover:border-[#FFA116] hover:text-[#FFD18A]'}`}>PROJECT SHOWCASE</button>
+ </div>
+ {section==='showcase'?<ProjectShowcase years={years} account={account}/>:<>
+ <h2 className="mt-8 text-2xl font-bold text-[#F1F5FF]">Community repositories by IIITG members</h2>
  <div className="mt-5 grid min-w-0 grid-cols-2 gap-3 sm:flex sm:flex-wrap">
   <input aria-label="Search repositories" placeholder="search repositories..." value={search} onChange={e=>{setSearch(e.target.value);setPage(1)}} className={`${control} col-span-2 w-full sm:w-auto sm:min-w-64 sm:flex-1`}/>
   <Select ariaLabel="Repository batch" value={year} onChange={value=>{setYear(value);setPage(1)}} className={`${control} w-full sm:w-auto`} options={[{value:'',label:'All batches'},...years.map(y=>({value:String(y),label:String(y)}))]} />
@@ -76,5 +86,7 @@ export default function Repositories({years,account}:{years:number[];account:{ro
  </div>
  <div className="mt-5 flex flex-wrap items-center gap-3 text-xs sm:gap-4"><button className={control} disabled={page===1} onClick={()=>setPage(v=>v-1)}>Previous</button><span>Page {page}</span><button className={control} disabled={page*24>=(data?.total||0)} onClick={()=>setPage(v=>v+1)}>Next</button></div></>:null}
  {account?.role==='ADMIN'&&<section className="mt-6 border border-[#2B3A52] p-5"><h3>Association reviews</h3><Select ariaLabel="Review status" className={`${control} mt-3`} value={reviewStatus} onChange={setReviewStatus} options={[{value:'pending',label:'Pending'},{value:'approved',label:'Approved / disputed'},{value:'rejected',label:'Rejected'}]} />{reviews.map(n=><article key={n.id} className="mt-4 text-xs"><p>{n.fullName} · {n.member?.name}</p><p className="my-2">{n.reason}</p><button className={control} onClick={()=>void review(n.id,'approved')}>Approve association</button> <button className={control} onClick={()=>void review(n.id,'rejected')}>Reject</button></article>)}</section>}
- {message&&<p role="status" className="mt-5 text-sm text-[#8BC5FF]">{message}</p>}</section>
+ {message&&<p role="status" className="mt-5 text-sm text-[#8BC5FF]">{message}</p>}
+ </>}
+ </section>
 }

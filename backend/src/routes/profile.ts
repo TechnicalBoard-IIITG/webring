@@ -26,8 +26,9 @@ profileRouter.patch('/me',async(req,res,next)=>{try{
  const profile=await prisma.$transaction(async tx=>{
   const before=await tx.memberProfile.findUnique({where:{ownerId:req.session.userId!}});
   if(!before)return null;
-  const after=await tx.memberProfile.update({where:{id:before.id,ownerId:req.session.userId!},data});
-  if(before.github!==after.github){
+  const githubChanged=data.github!==undefined&&before.github!==data.github;
+  const after=await tx.memberProfile.update({where:{id:before.id,ownerId:req.session.userId!},data:{...data,...(githubChanged?{featuredRepositoryIds:[]}: {})}});
+  if(githubChanged){
    await tx.memberRepository.deleteMany({where:{memberId:before.id,source:'owner'}});
    await tx.memberGitHubSummary.deleteMany({where:{memberId:before.id}});
   }
