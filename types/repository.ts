@@ -10,5 +10,5 @@ export interface GitHubOverview {
 }
 export interface GitHubLanguageSnapshot {
  github:string|null;status:'pending'|'ready'|'stale'|'unavailable'|'empty';
- languages:Record<string,number>;fetchedAt:string|null;stale:boolean;error?:string|null;
+ languages:Record<string,number>;fetchedAt:string|null;stale:boolean;error?:string|null;retryAt?:string|null;
 }

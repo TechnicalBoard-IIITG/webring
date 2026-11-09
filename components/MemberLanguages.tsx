@@ -21,6 +21,7 @@ export default function MemberLanguages({memberId,github}:{memberId?:string;gith
     if(controller.signal.aborted)return;
     setSnapshot(data);setError(false);
     if((data.status==='pending'||data.status==='stale'&&!data.error)&&polls++<15)timer=setTimeout(()=>void load(),2000);
+    else if(data.error&&data.retryAt){const retryAt=Date.parse(data.retryAt);if(Number.isFinite(retryAt)&&retryAt>Date.now())timer=setTimeout(()=>void load(),Math.min(retryAt-Date.now(),60000));}
    }catch{if(!controller.signal.aborted)setError(true)}
   };
   void load();return()=>{controller.abort();clearTimeout(timer)};

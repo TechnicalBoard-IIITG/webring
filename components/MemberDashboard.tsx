@@ -230,7 +230,7 @@ export default function MemberDashboard({
         role="dialog"
         aria-modal="true"
         aria-label={`${member.name}'s profile`}
-        className="relative h-[100dvh] max-h-[100dvh] w-full max-w-6xl overflow-y-auto overscroll-contain bg-[#1A2333] pb-[env(safe-area-inset-bottom)] sm:h-auto sm:max-h-[90dvh] sm:pb-0"
+        className="relative h-[100dvh] max-h-[100dvh] w-full min-w-0 max-w-6xl overflow-x-hidden overflow-y-auto overscroll-contain bg-[#1A2333] pb-[env(safe-area-inset-bottom)] sm:h-auto sm:max-h-[90dvh] sm:overflow-x-auto sm:pb-0"
       >
         <div className="sticky top-0 z-20 flex items-center justify-between gap-3 border-b border-[#2B3A52] bg-[#1A2333] px-4 pb-2 pt-[calc(env(safe-area-inset-top)+0.5rem)] sm:hidden">
           <p className="font-mono text-sm font-semibold text-[#D4DDF0]">Member profile</p>
@@ -282,7 +282,7 @@ export default function MemberDashboard({
           style={{ backgroundImage: `url(${member.banner || background})` }}
         />
 
-        <div className="grid grid-cols-1 gap-8 p-6 sm:grid-cols-[180px_minmax(0,1fr)] sm:gap-8 sm:p-8 lg:grid-cols-[208px_minmax(0,1fr)] lg:gap-10 lg:p-10">
+        <div className="grid min-w-0 grid-cols-1 gap-8 p-4 sm:grid-cols-[180px_minmax(0,1fr)] sm:gap-8 sm:p-8 lg:grid-cols-[208px_minmax(0,1fr)] lg:gap-10 lg:p-10">
           <div className="grid min-w-0 grid-cols-[112px_minmax(0,1fr)] items-start gap-x-4 self-start sm:flex sm:flex-col sm:items-center">
             <NextImage
               src={member.github?`https://github.com/${encodeURIComponent(member.github)}.png`:"/favicon.ico"}

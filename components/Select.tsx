@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useRef, useState, type KeyboardEvent } from "react";
+import { useEffect, useId, useRef, useState, type CSSProperties, type KeyboardEvent } from "react";
 import { Check, ChevronDown } from "lucide-react";
 
 export interface SelectOption {
@@ -41,6 +41,8 @@ export default function Select({
   const [query, setQuery] = useState("");
   const [menuWidth, setMenuWidth] = useState<number>();
   const [minimumWidth, setMinimumWidth] = useState<number>();
+  const [menuPlacement, setMenuPlacement] = useState<"above" | "below">("below");
+  const [menuMaxHeight, setMenuMaxHeight] = useState(256);
   const queryTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const selectedIndex = options.findIndex(option => option.value === value && !option.disabled);
   const selected = options.find(option => option.value === value);
@@ -80,16 +82,29 @@ export default function Select({
     const closeOnOutsidePointer = (event: PointerEvent) => {
       if (!root.current?.contains(event.target as Node)) setOpen(false);
     };
-    const updateMenuWidth = () => {
-      const width = trigger.current?.getBoundingClientRect().width;
-      if (width) setMenuWidth(width);
+    const updateMenuLayout = () => {
+      const button = trigger.current;
+      if (!button) return;
+      const rect = button.getBoundingClientRect();
+      if (rect.width) setMenuWidth(rect.width);
+      if (!window.matchMedia("(max-width: 639px)").matches) {
+        setMenuPlacement("below");
+        setMenuMaxHeight(256);
+        return;
+      }
+      const gap = 12;
+      const roomBelow = Math.max(0, window.innerHeight - rect.bottom - gap);
+      const roomAbove = Math.max(0, rect.top - gap);
+      const placement = roomBelow < 200 && roomAbove > roomBelow ? "above" : "below";
+      setMenuPlacement(placement);
+      setMenuMaxHeight(Math.min(256, placement === "above" ? roomAbove : roomBelow));
     };
-    updateMenuWidth();
+    updateMenuLayout();
     document.addEventListener("pointerdown", closeOnOutsidePointer);
-    window.addEventListener("resize", updateMenuWidth);
+    window.addEventListener("resize", updateMenuLayout);
     return () => {
       document.removeEventListener("pointerdown", closeOnOutsidePointer);
-      window.removeEventListener("resize", updateMenuWidth);
+      window.removeEventListener("resize", updateMenuLayout);
     };
   }, [open]);
 
@@ -177,8 +192,8 @@ export default function Select({
         disabled={disabled}
         onClick={() => open ? setOpen(false) : openAt(selectedIndex)}
         onKeyDown={handleKeyDown}
-        style={minimumWidth ? { minWidth: minimumWidth } : undefined}
-        className={`inline-flex items-center justify-between gap-2 text-left ${className}`}
+        style={minimumWidth ? ({ "--select-min-width": `${minimumWidth}px` } as CSSProperties) : undefined}
+        className={`inline-flex min-w-0 items-center justify-between gap-2 text-left sm:min-w-[var(--select-min-width)] ${className}`}
       >
         <span className="min-w-0 flex-1 truncate">{selected?.label ?? (value || placeholder)}</span>
         <ChevronDown size={14} aria-hidden className={`shrink-0 transition-transform ${open ? "rotate-180" : ""}`} />
@@ -188,8 +203,8 @@ export default function Select({
         role="listbox"
         aria-label={ariaLabel}
         hidden={!open}
-        style={menuWidth ? { width: menuWidth } : undefined}
-        className="absolute left-0 top-[calc(100%+0.35rem)] z-50 box-border max-h-64 overflow-x-hidden overflow-y-auto border border-[#40546E] bg-[#121826] py-1 text-xs text-[#D4DDF0] shadow-xl shadow-black/30"
+        style={{ ...(menuWidth ? { width: menuWidth } : {}), maxHeight: menuMaxHeight }}
+        className={`absolute left-0 z-50 box-border max-h-64 overflow-x-hidden overflow-y-auto border border-[#40546E] bg-[#121826] py-1 text-xs text-[#D4DDF0] shadow-xl shadow-black/30 ${menuPlacement === "above" ? "bottom-[calc(100%+0.35rem)]" : "top-[calc(100%+0.35rem)]"}`}
       >
         {options.map((option, index) => {
           const active = index === activeIndex;
@@ -209,7 +224,7 @@ export default function Select({
               }`}
             >
               <Check size={13} aria-hidden className={`shrink-0 ${isSelected ? "opacity-100 text-[#62D6A7]" : "opacity-0"}`} />
-              <span className="min-w-0 flex-1 whitespace-nowrap">{option.label}</span>
+              <span className="min-w-0 flex-1 whitespace-normal break-words [overflow-wrap:anywhere] sm:whitespace-nowrap sm:break-normal sm:[overflow-wrap:normal]">{option.label}</span>
             </div>
           );
         })}

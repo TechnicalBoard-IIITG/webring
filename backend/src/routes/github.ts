@@ -13,10 +13,12 @@ githubRouter.get('/:id/github/languages',async(req,res,next)=>{try{
  const valid=summary?.github===member.github;
  const fetchedAt=valid?summary.languageFetchedAt:null;
  const error=valid?summary.languageError:null;
- const stale=Boolean(!fetchedAt||Date.now()-fetchedAt.getTime()>LANGUAGE_TTL);
- if(!summary||!valid||summary.languageNextAttemptAt<=new Date())enqueueMemberLanguages(member.id);
+ const now=new Date();
+ const retryDue=!summary||!valid||summary.languageNextAttemptAt<=now;
+ const stale=Boolean(!fetchedAt||now.getTime()-fetchedAt.getTime()>LANGUAGE_TTL);
+ if(retryDue)enqueueMemberLanguages(member.id);
  res.setHeader('Cache-Control','no-store');
- res.json({github:member.github,status:error?(fetchedAt?'stale':'unavailable'):fetchedAt?(stale?'stale':'ready'):'pending',languages:valid?summary.languages:{},fetchedAt,stale,error});
+ res.json({github:member.github,status:retryDue?'pending':error?(fetchedAt?'stale':'unavailable'):fetchedAt?(stale?'stale':'ready'):'pending',languages:valid?summary.languages:{},fetchedAt,stale,error,retryAt:valid?summary.languageNextAttemptAt:null});
  }catch(error){next(error)}});
 githubRouter.get('/:id/github',async(req,res,next)=>{try{
  const member=await prisma.memberProfile.findFirst({where:{id:req.params.id,isPublic:true}});
