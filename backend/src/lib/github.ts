@@ -5,7 +5,7 @@ export const githubRepositorySchema=z.object({id:z.number().int().positive().saf
 type GitHubRepository=z.infer<typeof githubRepositorySchema>;
 
 export const REPOSITORY_TTL = 60 * 60 * 1000;
-export const LIVE_REPOSITORY_TTL = 60 * 1000;
+export const LIVE_REPOSITORY_TTL = 5 * 60 * 1000;
 export function repositoryRefreshDue(now = new Date(), live=false): Prisma.MemberGitHubSummaryWhereInput {
  return {OR:[
   {nextAttemptAt:{lte:now}},

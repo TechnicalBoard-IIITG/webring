@@ -4,6 +4,8 @@ import type {
   LeaderboardBoardId,
   LeaderboardData,
   LeaderboardEntry,
+  LeetCodeDifficulty,
+  LeetCodeLeaderboardMode,
 } from "@/types/leaderboard";
 
 import { recentDateKeys, sumActivity } from "@/lib/activity";
@@ -120,9 +122,15 @@ async function buildGithubBoard(
 
 async function buildLeetCodeBoard(
   members: readonly Member[],
+  difficulties: readonly LeetCodeDifficulty[],
+  mode: LeetCodeLeaderboardMode,
   week: ReadonlySet<string>,
 ): Promise<LeaderboardBoard> {
   const eligible = members.filter((member) => member.leetcode);
+
+  if (mode === "solved" && difficulties.length === 0) {
+    return createBoard("leetcode", "solved", "total", eligible.length, 0, []);
+  }
 
   const results = await mapWithConcurrency(
     eligible,
@@ -142,9 +150,13 @@ async function buildLeetCodeBoard(
       continue;
     }
 
+    const count = mode === "submissions"
+      ? sumActivity(result.data.calendar, week)
+      : difficulties.reduce((total, difficulty) => total + result.data[difficulty], 0);
+
     candidates.push({
       member,
-      count: sumActivity(result.data.calendar, week),
+      count,
       detail:
         result.data.solved > 0
           ? `${result.data.solved} solved total`
@@ -155,8 +167,8 @@ async function buildLeetCodeBoard(
 
   return createBoard(
     "leetcode",
-    "submissions",
-    `last ${WEEK_DAYS} days`,
+    mode === "submissions" ? "submissions" : "solved",
+    mode === "submissions" ? `last ${WEEK_DAYS} days` : "total",
     eligible.length,
     unavailable,
     candidates,
@@ -207,12 +219,14 @@ async function buildCodeforcesBoard(
 export async function buildLeaderboard(
   members: readonly Member[],
   platform?: LeaderboardBoardId,
+  leetcodeDifficulties: readonly LeetCodeDifficulty[] = ["easy", "medium", "hard"],
+  leetcodeMode: LeetCodeLeaderboardMode = "solved",
 ): Promise<LeaderboardData> {
   const week = new Set(recentDateKeys(WEEK_DAYS));
 
   const builders = {
     github:()=>buildGithubBoard(members,week),
-    leetcode:()=>buildLeetCodeBoard(members,week),
+    leetcode:()=>buildLeetCodeBoard(members,leetcodeDifficulties,leetcodeMode,week),
     codeforces:()=>buildCodeforcesBoard(members),
   };
   const selected:LeaderboardBoardId[]=platform?[platform]:['github','leetcode','codeforces'];

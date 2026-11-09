@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import YearFilter from "./YearFilter";
+import Select from "./Select";
+import MultiSelect from "./MultiSelect";
 import { RefreshCw } from "lucide-react";
 import type { ReactNode } from "react";
 import { FaGithub } from "react-icons/fa";
@@ -12,6 +13,8 @@ import { useLeaderboard } from "@/hooks/useLeaderboard";
 import type {
   LeaderboardBoard,
   LeaderboardBoardId,
+  LeetCodeDifficulty,
+  LeetCodeLeaderboardMode,
 } from "@/types/leaderboard";
 
 const PLATFORMS: Record<
@@ -40,8 +43,8 @@ const PLACEHOLDER_BOARDS: LeaderboardBoard[] = (
 ).map((id) => ({
   id,
   metric:
-    id === "github" ? "contributions" : id === "codeforces" ? "rating" : "submissions",
-  windowLabel: id === "codeforces" ? "current" : "last 7 days",
+    id === "github" ? "contributions" : id === "codeforces" ? "rating" : "solved",
+  windowLabel: id === "codeforces" ? "current" : id === "leetcode" ? "total" : "last 7 days",
   eligible: 0,
   unavailable: 0,
   entries: [],
@@ -52,7 +55,9 @@ function emptyMessageFor(board: LeaderboardBoard): string {
     case "github":
       return "No GitHub activity in the last 7 days.";
     case "leetcode":
-      return "No LeetCode submissions in the last 7 days.";
+      return board.metric === "submissions"
+        ? "No LeetCode submissions in the last 7 days."
+        : "No LeetCode problems solved in the selected difficulties.";
     case "codeforces":
       return board.eligible === 0
         ? "No Codeforces handles in the directory yet."
@@ -75,12 +80,31 @@ function timeAgo(iso: string): string {
 
 export default function Leaderboard({years}:{years:number[]}) {
   const [year,setYear]=useState<number | "All">("All");
-  const { data, loading, refreshing, loadingBoards, failedBoards, error, refresh } = useLeaderboard(year);
+  const [leetcodeDifficulties,setLeetcodeDifficulties]=useState<LeetCodeDifficulty[]>(["easy","medium","hard"]);
+  const [leetcodeMode,setLeetcodeMode]=useState<LeetCodeLeaderboardMode>("solved");
+  const { data, loading, refreshing, loadingBoards, failedBoards, error, refresh } = useLeaderboard(year,leetcodeDifficulties,leetcodeMode);
 
-  const boards = PLACEHOLDER_BOARDS.map(empty=>data?.boards.find(board=>board.id===empty.id)||empty);
+  const boards = PLACEHOLDER_BOARDS.map(empty=>{
+    const current=data?.boards.find(board=>board.id===empty.id);
+    if(current)return current;
+    if(empty.id==="leetcode")return {...empty,metric:leetcodeMode==="submissions"?"submissions":"solved",windowLabel:leetcodeMode==="submissions"?"last 7 days":"total"};
+    return empty;
+  });
+
+  const toggleLeetCodeDifficulty=(difficulty:LeetCodeDifficulty)=>setLeetcodeDifficulties(current=>{
+    if(current.includes(difficulty))return current.filter(value=>value!==difficulty);
+    return ["easy","medium","hard"].filter(value=>current.includes(value as LeetCodeDifficulty)||value===difficulty) as LeetCodeDifficulty[];
+  });
+
+  const updateLeetCodeMode=(mode:LeetCodeLeaderboardMode)=>{
+    if(mode==="submissions")setLeetcodeDifficulties(["easy","medium","hard"]);
+    setLeetcodeMode(mode);
+  };
+
+  const control="mobile-target min-h-10 w-full min-w-0 border border-[#2B3A52] bg-[#1A2233] px-2.5 py-1.5 font-mono text-xs text-[#9AA8C7] transition-colors enabled:cursor-pointer enabled:hover:border-[#5B8CFF] enabled:hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#5B8CFF] disabled:cursor-not-allowed disabled:opacity-40";
 
   return (
-    <div className="mt-10 animate-fade-in-up">
+    <div className="mt-10">
       <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
         <div>
           <h2 className="font-mono text-2xl font-bold text-[#F1F5FF]">
@@ -88,8 +112,7 @@ export default function Leaderboard({years}:{years:number[]}) {
           </h2>
 
           <p className="mt-1 font-mono text-sm text-[#9AA8C7]">
-            GitHub and LeetCode activity over the last 7 days, plus current
-            Codeforces ratings.
+            GitHub contributions, LeetCode solved counts or weekly submissions, and current Codeforces ratings.
           </p>
         </div>
 
@@ -114,7 +137,47 @@ export default function Leaderboard({years}:{years:number[]}) {
         </div>
       </div>
 
-      <YearFilter members={[]} availableYears={years} value={year} onChange={setYear}/>
+      <div className="mt-6 mb-8 grid min-w-0 gap-x-8 gap-y-5 lg:grid-cols-[12rem_minmax(0,1fr)] lg:items-end">
+        <section className="min-w-0">
+          <p className="font-mono text-[11px] tracking-wider text-[#6E7F9E]">Batch options</p>
+          <div aria-hidden className="my-2 h-px w-full bg-[#2B3A52]" />
+          <Select
+            ariaLabel="Batch filter"
+            value={year==="All"?"":String(year)}
+            onChange={value=>setYear(value?Number(value):"All")}
+            className={`${control} max-w-48`}
+            placeholder="All batches"
+            options={[{value:"",label:"All batches"},...[...years].sort((a,b)=>b-a).map(value=>({value:String(value),label:String(value)}))]}
+          />
+        </section>
+        <section className="min-w-0">
+          <p className="font-mono text-[11px] tracking-wider text-[#6E7F9E] sm:text-right">LeetCode options</p>
+          <div aria-hidden className="my-2 hidden h-px bg-[#2B3A52] sm:ml-auto sm:block sm:w-[26.75rem]" />
+          <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:justify-end">
+            <Select
+              ariaLabel="LeetCode leaderboard metric"
+              value={leetcodeMode}
+              onChange={value=>updateLeetCodeMode(value as LeetCodeLeaderboardMode)}
+              className={`${control} sm:w-56`}
+              options={[{value:"solved",label:"Total solved"},{value:"submissions",label:"Last 7 days submissions"}]}
+            />
+            <MultiSelect
+              key={leetcodeMode}
+              ariaLabel="LeetCode difficulties"
+              options={[
+                {value:"easy",label:"Easy",color:"#87C5A4",selectedBackground:"#1B352C"},
+                {value:"medium",label:"Medium",color:"#D7C381",selectedBackground:"#342D1B"},
+                {value:"hard",label:"Hard",color:"#D88F94",selectedBackground:"#352126"},
+              ]}
+              selectedValues={leetcodeDifficulties}
+              onToggle={value=>toggleLeetCodeDifficulty(value as LeetCodeDifficulty)}
+              disabled={leetcodeMode==="submissions"}
+              selectedLabel={leetcodeDifficulties.length===3?"All difficulties":leetcodeDifficulties.length===0?"No difficulties":`${leetcodeDifficulties.length} difficulties`}
+              className={`${control} sm:w-48`}
+            />
+          </div>
+        </section>
+      </div>
       {error && !data && !loading ? (
         <div className="border border-[#2B3A52] bg-[#1A2233] px-5 py-8 text-center">
           <p className="font-mono text-sm text-[#9AA8C7]">
@@ -153,7 +216,7 @@ export default function Leaderboard({years}:{years:number[]}) {
                   loading={loadingBoards[board.id]}
                   eligible={board.eligible}
                   unavailable={board.unavailable}
-                  emptyMessage={failedBoards[board.id]?"Could not load this board. Try Refresh.":emptyMessageFor(board)}
+                  emptyMessage={failedBoards[board.id]?"Could not load this board. Try Refresh.":board.id==="leetcode"&&leetcodeMode==="solved"&&!leetcodeDifficulties.length?"Choose at least one difficulty to see the solved leaderboard.":emptyMessageFor(board)}
                 />
               );
             })}

@@ -130,7 +130,7 @@ export default function EditProfile() {
 
   return <main className="relative min-h-screen bg-[#121826] pl-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))] pb-[max(2rem,env(safe-area-inset-bottom))] pt-[max(2rem,env(safe-area-inset-top))] font-mono text-[#F1F5FF] sm:pl-[max(2rem,env(safe-area-inset-left))] sm:pr-[max(2rem,env(safe-area-inset-right))] sm:py-12">
     <div aria-hidden className="pointer-events-none fixed inset-0 bg-grid" />
-    <div className="relative mx-auto max-w-5xl">
+    <div className="relative mx-auto max-w-7xl">
       <Link href="/" className="inline-flex items-center gap-2 text-xs text-[#9AA8C7] transition-colors hover:text-[#8BC5FF] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#5B8CFF]"><ArrowLeft size={14} aria-hidden /> Back to IIITG Index</Link>
       <header className="mt-8 flex flex-col items-start justify-between gap-5 sm:flex-row border-b border-[#2B3A52] pb-7">
         <div><h1 className="text-3xl font-bold tracking-tight sm:text-4xl">Your <span className="text-[#8BC5FF]">Profile</span></h1><p className="mt-3 max-w-xl text-sm leading-relaxed text-[#9AA8C7]">Your place in the directory. Update your details, links, and profile banner.</p></div>

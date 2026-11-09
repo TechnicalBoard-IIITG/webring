@@ -1,5 +1,5 @@
 "use client";
-import { useEffect,useState,type CSSProperties } from 'react';
+import { useEffect,useRef,useState,type CSSProperties } from 'react';
 import { cachedRepositories, defaultRepositoryQuery, loadRepositories, type RepositoryPage } from '@/lib/repositories-client';
 import { Star, GitFork, RefreshCw } from 'lucide-react';
 import RepositoryLanguage, { languageColor } from './RepositoryLanguage';
@@ -14,8 +14,12 @@ export default function Repositories({years,account}:{years:number[];account:{ro
  useEffect(()=>{const timer=setTimeout(()=>setDebouncedSearch(search),300);return()=>clearTimeout(timer)},[search]);
  const [refreshAttempt,setRefreshAttempt]=useState(0);
  const [updating,setUpdating]=useState(false);
+ const [manualRefreshing,setManualRefreshing]=useState(false);
+ const manualRefreshStartedAt=useRef<number|null>(null);
+ const manualRefreshTimer=useRef<ReturnType<typeof setTimeout>|null>(null);
  const [reviewStatus,setReviewStatus]=useState('pending');
  const [loading,setLoading]=useState(()=>!cachedRepositories(defaultRepositoryQuery,true));const [error,setError]=useState('');const [message,setMessage]=useState('');const [reviews,setReviews]=useState<Nomination[]>([]);
+ useEffect(()=>()=>{if(manualRefreshTimer.current)clearTimeout(manualRefreshTimer.current)},[]);
  useEffect(()=>{
   let active=true;
   const q=new URLSearchParams({page:String(page),search:debouncedSearch,sort,forks:String(forks)});if(year)q.set('year',year);if(language)q.set('language',language);if(member)q.set('member',member);
@@ -27,12 +31,12 @@ export default function Repositories({years,account}:{years:number[];account:{ro
    clearTimeout(timer);
    if(document.hidden){timer=setTimeout(()=>void load(),60000);return;}
    busy=true;setUpdating(true);
-   let delay=60000;
+   let delay=300000;
    try{
     const result=await loadRepositories(q.toString(),{live:true});
-    if(active){setData(result);setError('');const lastPage=Math.max(1,Math.ceil(result.total/24));if(page>lastPage)setPage(lastPage);if(result.refresh?.pending)delay=3000;}
+    if(active){setData(result);setError('');const lastPage=Math.max(1,Math.ceil(result.total/24));if(page>lastPage)setPage(lastPage);delay=(result.refresh?.intervalSeconds??300)*1000;if(result.refresh?.pending)delay=3000;}
    }catch(e){if(active)setError((e as Error).message);}
-   finally{busy=false;if(active){setLoading(false);setUpdating(false);timer=setTimeout(()=>void load(),delay);}}
+   finally{busy=false;if(active){setLoading(false);setUpdating(false);const startedAt=manualRefreshStartedAt.current;if(startedAt!==null){if(manualRefreshTimer.current)clearTimeout(manualRefreshTimer.current);manualRefreshTimer.current=setTimeout(()=>{manualRefreshStartedAt.current=null;setManualRefreshing(false)},Math.max(0,5000-(Date.now()-startedAt)));}timer=setTimeout(()=>void load(),delay);}}
   };
   void load();
   const visible=()=>{if(!document.hidden)void load();};
@@ -49,9 +53,8 @@ export default function Repositories({years,account}:{years:number[];account:{ro
   <Select ariaLabel="Repository sort" className={`${control} w-full sm:w-auto`} wrapperClassName="col-span-2 sm:col-span-1" value={sort} onChange={value=>{setSort(value);setPage(1)}} options={[{value:'stars',label:'Stars'},{value:'forks',label:'Forks'},{value:'pushed',label:'Recently pushed'}]} />
   <label className={`${control} flex items-center gap-2 text-sm sm:text-xs`}><input type="checkbox" aria-label="Include forked repositories" checked={forks} onChange={e=>{setForks(e.target.checked);setPage(1)}} className="size-4 shrink-0 accent-[#62D6A7]"/><span className="sm:hidden">Forks</span><span className="hidden sm:inline">Include forks</span></label>
  </div>
- <div className="mt-3 flex justify-end"><button className={`${control} inline-flex items-center justify-center gap-2`} disabled={updating} onClick={()=>setRefreshAttempt(v=>v+1)}><RefreshCw size={14} aria-hidden className={updating?'animate-spin':''}/>{updating?'Refreshing...':'Refresh from GitHub'}</button></div>
+ <div className="mt-3 flex justify-end"><button className={`${control} inline-flex items-center justify-center gap-2`} disabled={updating||manualRefreshing} onClick={()=>{if(updating||manualRefreshing)return;manualRefreshStartedAt.current=Date.now();setManualRefreshing(true);setRefreshAttempt(v=>v+1)}}><RefreshCw size={14} aria-hidden className={manualRefreshing?'animate-spin':''}/>{manualRefreshing?'Refreshing...':'Refresh from GitHub'}</button></div>
  {member&&<p className="mt-3 text-xs">Filtering by member <button className="text-[#8BC5FF]" onClick={()=>{setMember('');setPage(1)}}>Clear member</button></p>}
- {(error||data?.refresh?.pending||updating)&&<p role="status" aria-live="polite" className="mt-4 text-xs text-[#A2F0CF]">{error?'Could not refresh GitHub. Retrying automatically.':data?.refresh?.pending?`Updating from GitHub (${data.refresh.pending} members remaining)...`:'Checking GitHub for updates...'}</p>}
  {Boolean(data?.refresh?.deferred)&&<p className="mt-2 text-xs text-[#E0A35B]">Some GitHub updates are temporarily unavailable. Showing the last available results and retrying automatically.</p>}
  {error&&<p role="alert" className="mt-5 text-[#E0A35B]">{error}{data?' Showing the last available results.':''}</p>}
  {loading&&!data?<p role="status" className="mt-5">Loading repositories...</p>:data?<>

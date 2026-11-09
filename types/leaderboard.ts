@@ -1,4 +1,6 @@
 export type LeaderboardBoardId = "github" | "leetcode" | "codeforces";
+export type LeetCodeDifficulty = "easy" | "medium" | "hard";
+export type LeetCodeLeaderboardMode = "submissions" | "solved";
 
 export interface LeaderboardEntry {
   rank: number;

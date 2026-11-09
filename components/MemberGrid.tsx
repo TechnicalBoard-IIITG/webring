@@ -14,8 +14,8 @@ export default function MemberGrid({
   codeforcesRatings,
 }: MemberGridProps) {
   return (
-    <div className="mt-10 grid grid-cols-1 gap-3 min-[360px]:grid-cols-2 sm:flex sm:gap-5 sm:flex-wrap sm:[&>*]:w-44">
-      {members.map((member, index) => (
+    <div className="mt-10 grid grid-cols-1 gap-4 min-[360px]:grid-cols-2 sm:flex sm:gap-6 sm:flex-wrap sm:[&>*]:w-48">
+      {members.map((member) => (
         <MemberCard
           key={member.id || member.github || member.name}
           member={member}
@@ -25,7 +25,6 @@ export default function MemberGrid({
               ? codeforcesRatings[member.codeforces]
               : undefined
           }
-          style={{ animationDelay: `${Math.min(index, 20) * 40}ms` }}
         />
       ))}
     </div>

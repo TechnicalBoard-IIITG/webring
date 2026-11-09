@@ -46,25 +46,25 @@ export default function LeaderboardPanel({
   return (
     <section className="flex min-w-0 flex-col border border-[#2B3A52] bg-[#1A2233]/60 backdrop-blur-sm">
       <header
-        className="flex min-w-0 items-center gap-2 border-b border-[#2B3A52] px-4 py-4 sm:px-5"
+        className="flex min-w-0 flex-wrap items-center gap-2 border-b border-[#2B3A52] px-4 py-4 sm:px-5"
         style={{ boxShadow: `inset 0 2px 0 ${accent}` }}
       >
         <span style={{ color: accent }} aria-hidden>
           {icon}
         </span>
 
-        <h3 className="font-mono text-lg font-bold text-[#F1F5FF]">{title}</h3>
+        <h3 className="shrink-0 font-mono text-xl font-bold text-[#F1F5FF]">{title}</h3>
 
         <span className="ml-auto text-right font-mono text-[11px] leading-tight text-[#6E7F9E]">
           <span className="block">{metric}</span>
-          <span className="block">{windowLabel}</span>
+          {windowLabel ? <span className="block">{windowLabel}</span> : null}
         </span>
       </header>
 
       <div className="divide-y divide-[#2B3A52]">
         {loading &&
           Array.from({ length: 5 }).map((_, index) => (
-            <div key={index} className="flex items-center gap-3 px-5 py-3">
+            <div key={index} className="flex items-center gap-3 px-5 py-4">
               <div className="size-5 shrink-0 animate-pulse rounded bg-[#233046]" />
               <div className="size-8 shrink-0 animate-pulse rounded-full bg-[#233046]" />
               <div className="h-4 w-32 animate-pulse rounded bg-[#233046]" />
@@ -84,7 +84,7 @@ export default function LeaderboardPanel({
               href={entry.profileUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex min-w-0 items-center gap-2 px-4 py-3 transition-colors sm:gap-3 sm:px-5 duration-150 hover:bg-[#20304a]"
+              className="flex min-w-0 items-center gap-3 px-4 py-4 transition-colors sm:gap-4 sm:px-5 duration-150 hover:bg-[#20304a]"
             >
               <span
                 className="w-5 shrink-0 text-center font-mono text-sm font-bold"
@@ -96,14 +96,14 @@ export default function LeaderboardPanel({
               <Image
                 src={`https://github.com/${entry.github}.png`}
                 alt=""
-                width={32}
-                height={32}
+                width={40}
+                height={40}
                 unoptimized
-                className="size-8 shrink-0 rounded-full border border-[#2B3A52] object-cover"
+                className="size-10 shrink-0 rounded-full border border-[#2B3A52] object-cover"
               />
 
               <span className="min-w-0 flex-1">
-                <span className="block break-words font-mono text-sm [overflow-wrap:anywhere] sm:truncate text-[#F1F5FF]">
+                <span className="block break-words font-mono text-base [overflow-wrap:anywhere] sm:truncate text-[#F1F5FF]">
                   {entry.name}
                 </span>
 

@@ -45,13 +45,12 @@ export default function MemberCard({
         w-full
         min-w-0
         cursor-pointer
-        animate-fade-in-up
         border
         border-[#2B3A52]
         bg-[#1A2233]
-        p-3
-        transition-all
-        duration-300
+        p-4
+        transition-colors
+        duration-150
         ${glowColor ? "member-card-rated" : "hover:border-[#5B8CFF]"}
       `}
     >
@@ -59,9 +58,9 @@ export default function MemberCard({
         <Image
           src={member.github?`https://github.com/${encodeURIComponent(member.github)}.png`:"/favicon.ico"}
           alt={member.name}
-          width={40}
-          height={40}
-          className="border border-[#2B3A52] object-cover"
+          width={48}
+          height={48}
+          className="size-12 border border-[#2B3A52] object-cover"
           unoptimized
         />
 
@@ -81,7 +80,7 @@ export default function MemberCard({
       </div>
 
       <h3
-        className={`line-clamp-2 break-words font-mono text-[15px] sm:line-clamp-none sm:truncate font-semibold text-white transition-[color,text-shadow] duration-300 ${
+        className={`line-clamp-2 break-words font-mono text-base sm:line-clamp-none sm:truncate font-semibold text-white transition-colors duration-150 ${
           glowColor ? "member-card-name" : "group-hover:text-[#8BC5FF]"
         }`}
       >

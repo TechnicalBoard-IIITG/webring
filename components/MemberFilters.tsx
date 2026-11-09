@@ -1,7 +1,7 @@
 "use client";
 
 import type { CSSProperties } from "react";
-import { Check, ExternalLink, RotateCcw } from "lucide-react";
+import { Check, ExternalLink } from "lucide-react";
 import { FaGithub, FaLinkedin } from "react-icons/fa";
 import { SiCodeforces, SiLeetcode } from "react-icons/si";
 import Select from "./Select";
@@ -25,14 +25,12 @@ interface MemberFiltersProps {
 interface ProfileFiltersProps {
   selectedPlatforms: string[];
   onPlatformsChange: (value: string[]) => void;
-  canReset: boolean;
-  onReset: () => void;
 }
 
 const control = "mobile-target min-h-14 min-w-0 border border-[#2B3A52] bg-[#1A2233] px-3 py-3 font-mono text-base text-[#9AA8C7] transition-colors enabled:cursor-pointer enabled:hover:border-[#5B8CFF] enabled:hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#5B8CFF] disabled:cursor-not-allowed disabled:opacity-35 sm:text-sm";
 
 export default function MemberFilters({ technologies, technology, onTechnologyChange, sort, onSortChange }: MemberFiltersProps) {
-  return <>
+  return <div className="contents lg:flex lg:min-w-0 lg:flex-1 lg:gap-3">
     <div className="col-span-1 min-w-0 w-full sm:flex-1">
       <Select
         ariaLabel="Technology filter"
@@ -56,10 +54,10 @@ export default function MemberFilters({ technologies, technology, onTechnologyCh
         options={[{ value: "name", label: "Name" }, { value: "batch", label: "Batch" }]}
       />
     </div>
-  </>;
+  </div>;
 }
 
-export function ProfileFilters({ selectedPlatforms, onPlatformsChange, canReset, onReset }: ProfileFiltersProps) {
+export function ProfileFilters({ selectedPlatforms, onPlatformsChange }: ProfileFiltersProps) {
   return <div className="mt-4 flex flex-wrap items-end gap-4 font-mono">
     <fieldset className="min-w-0 flex-1">
       <legend className="mb-2.5 text-[11px] tracking-wider text-[#6E7F9E] sm:text-[10px]">HAS PROFILE{selectedPlatforms.length > 0 ? ` / ${selectedPlatforms.length} selected` : ""}</legend>
@@ -78,8 +76,5 @@ export function ProfileFilters({ selectedPlatforms, onPlatformsChange, canReset,
         })}
       </div>
     </fieldset>
-    <button type="button" aria-label="Reset filters" onClick={onReset} disabled={!canReset} className={`${control} w-full sm:w-auto`}>
-      <span className="inline-flex items-center justify-center gap-2"><RotateCcw size={13} aria-hidden /><span>Reset</span></span>
-    </button>
   </div>;
 }
