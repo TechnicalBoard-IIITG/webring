@@ -25,6 +25,7 @@ export function imageType(bytes: Buffer): { extension: string; mime: string } | 
 export async function storeBanner(ownerId: string, bytes: Buffer, mime: string) {
  const type = imageType(bytes);
  if (!type || type.mime !== mime || bytes.length > 5 * 1024 * 1024) throw Error('Invalid image');
+ if (process.env.BANNER_STORAGE === 'disabled') throw new BannerStorageError('Banner uploads are temporarily unavailable', 'Set BANNER_STORAGE=s3 when persistent storage is ready');
  const key = `banners/${encodeURIComponent(ownerId)}/${randomUUID()}.${type.extension}`;
  if (process.env.BANNER_STORAGE === 's3') {
   const missing = s3Required.filter(name => !process.env[name]);
@@ -45,7 +46,7 @@ export async function storeBanner(ownerId: string, bytes: Buffer, mime: string) 
   }
   return {url:`${origin.toString().replace(/\/$/,'')}/${key}`, remove:()=>s3.send(new DeleteObjectCommand({Bucket:process.env.S3_BUCKET, Key:key}))};
  }
- if (process.env.NODE_ENV === 'production') throw new BannerStorageError('Persistent object storage is required in production', 'Set BANNER_STORAGE=s3 with S3/R2 credentials');
+ if (process.env.NODE_ENV === 'production' && process.env.ALLOW_EPHEMERAL_BANNER_STORAGE !== 'true') throw new BannerStorageError('Persistent object storage is required in production', 'Set BANNER_STORAGE=s3 with S3/R2 credentials. For a temporary preview only, set ALLOW_EPHEMERAL_BANNER_STORAGE=true; local uploads can disappear.');
  const path = resolve('uploads', key);
  try {
   await mkdir(resolve(path, '..'), {recursive:true});

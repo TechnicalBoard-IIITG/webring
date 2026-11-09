@@ -33,12 +33,12 @@ const control = "mobile-target min-h-14 min-w-0 border border-[#2B3A52] bg-[#1A2
 
 export default function MemberFilters({ technologies, technology, onTechnologyChange, sort, onSortChange }: MemberFiltersProps) {
   return <>
-    <div className="col-span-1 min-w-0 w-full sm:w-auto">
+    <div className="col-span-1 min-w-0 w-full sm:flex-1">
       <Select
         ariaLabel="Technology filter"
         value={technology}
         onChange={onTechnologyChange}
-        className={`${control} w-full justify-between sm:w-auto`}
+        className={`${control} w-full justify-between`}
         placeholder="All technologies"
         options={[
           { value: "", label: "All technologies" },
@@ -47,12 +47,12 @@ export default function MemberFilters({ technologies, technology, onTechnologyCh
         ]}
       />
     </div>
-    <div className="col-span-1 min-w-0 w-full sm:w-auto">
+    <div className="col-span-1 min-w-0 w-full sm:flex-1">
       <Select
         ariaLabel="Sort members"
         value={sort}
         onChange={onSortChange}
-        className={`${control} w-full justify-between sm:w-auto`}
+        className={`${control} w-full justify-between`}
         options={[{ value: "name", label: "Name" }, { value: "batch", label: "Batch" }]}
       />
     </div>

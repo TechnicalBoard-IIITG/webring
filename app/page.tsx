@@ -156,8 +156,8 @@ export default function Home() {
 
         {activeTab === "directory" || activeTab === "linkedin" ? (
           <>
-            <div className="mt-10 grid min-w-0 grid-cols-2 items-stretch gap-3 sm:flex sm:flex-wrap sm:items-center">
-              <SearchBar className="col-span-2 w-full sm:col-span-1 sm:w-80 sm:flex-none" value={search} onChange={v=>{setSearch(v);setPage(1)}} />
+            <div className="mt-10 grid min-w-0 grid-cols-2 items-stretch gap-3 sm:flex sm:flex-nowrap sm:items-center">
+              <SearchBar className="col-span-2 w-full sm:min-w-0 sm:flex-1" value={search} onChange={v=>{setSearch(v);setPage(1)}} />
               <MemberFilters
                 technologies={technologies}
                 technology={tech}
