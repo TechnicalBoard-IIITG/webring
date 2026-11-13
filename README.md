@@ -41,7 +41,7 @@ On Windows with restricted PowerShell scripts, use `npm.cmd` in place of `npm`.
 
 ## Profiles and data
 
-The directory, LinkedIn section, repositories and leaderboards are public. Students sign in with a verified `@iiitg.ac.in` Google account to edit their profile. A unique legacy email match links an existing profile to its owner.
+The directory, LinkedIn section, repositories and leaderboards are public. Students sign in with a verified `@iiitg.ac.in` Google account to edit their profile. A unique legacy email match links an existing profile to its owner. Switching between the main tabs clears the directory search and filters. The LinkedIn page only lists profiles with a LinkedIn URL; its redundant profile checklist is hidden. Member names in LinkedIn and repository listings open the member profile panel.
 
 PostgreSQL is the source of truth. Keep `data/members.json` as the legacy archive; do not reimport it into a populated database. Before deploying migrations, take a backup and retain a Neon recovery point. Migrations are additive; do not reset the database.
 
@@ -55,8 +55,8 @@ Backups, environment files, uploads and dependency/build directories stay out of
 
 ## External data and banners
 
-- GitHub and LeetCode leaderboards use the last seven UTC days; Codeforces uses current ratings. Missing provider data is shown as unavailable. The frontend and API need outbound HTTPS access.
-- The repository view selects up to two popular repositories per member pushed in the last 30 days, excluding profile README repositories and, by default, forks.
+- The GitHub leaderboard counts contributions over the last seven UTC days. The LeetCode leaderboard defaults to total solved in the selected difficulties and can switch to submissions from the last seven UTC days; difficulty selection applies to total solved and is disabled in submissions mode. Codeforces uses current ratings. Missing provider data is shown as unavailable. The frontend and API need outbound HTTPS access.
+- Community repositories show up to two popular repositories per member pushed in the last 30 days, excluding profile README repositories and, by default, forks. The separate Project Showcase lets each member feature up to two of their own public, non-forked repositories.
 - GitHub languages use a cached sample of up to ten original, active public repositories under 100 MB. Percentages describe code-byte shares; the sidebar excludes HTML and CSS. Generated or vendored code may be included by GitHub's language API.
 - Repository discovery runs automatically at API startup and checks for due work every minute. Successful snapshots expire after one hour; failed refreshes back off. `npm run sync:github` in `backend/` also supports a separate scheduler. A server-only `GITHUB_TOKEN` raises GitHub's public API rate limit. Opening the community repositories tab requests fresh GitHub discovery and keeps checking every minute while visible; active refreshes are polled every three seconds. The refresh button also requests fresh discovery. Successful accounts are rechecked at most once a minute, while provider errors retain their backoff. Existing results stay visible during refreshes. Large directories drain through a bounded queue, so refresh completion depends on GitHub limits and job duration.
 - Banner uploads accept GIF, PNG, JPEG and WebP up to 5 MB. Production requires persistent R2/S3-compatible storage; configure the placeholders in `backend/.env.banner.example`. The API validates banner storage at startup: with `NODE_ENV=production` it refuses to boot unless `BANNER_STORAGE=s3` and every required `S3_*`/`AWS_*` variable is set, and an upload that still fails returns `503` with an actionable message instead of a generic 500. Preserve existing banner URLs and files when moving hosts.
@@ -140,6 +140,14 @@ Responses include `refresh.pending`, `refresh.deferred`, and `refresh.intervalSe
 A live refresh checks GitHub rather than merely re-reading the stored snapshot. Successful member checks are coalesced to a one-minute interval and database claims prevent duplicate workers. Conditional ETag requests validate unchanged GitHub responses and reduce authenticated primary-rate-limit usage. Keep a server-only `GITHUB_TOKEN` configured for useful live coverage; GitHub failures/rate limits are displayed as deferred updates with the last available results retained. This is periodic live refresh, not an event/webhook stream or a promise of instant propagation; GitHub limits and queue duration affect freshness.
 
 Repository cards use each language's color for the tinted background, border, hover/focus border and title. Unknown languages use the neutral fallback color.
+
+## Project Showcase
+
+The Repositories page opens on **Community Repositories**. **Project Showcase** is a separate tab with one full-width card per member and one or two selected projects per card. Members are ranked by the combined stars on their selected projects by default; the sort control also supports combined forks and most recently pushed projects. Search, batch, and language filters are available.
+
+Signed-in members can use **Add your Project** or **Edit your picks** to choose up to two repositories from their synced GitHub repository list. Only their own public, original repositories are eligible; forks and private repositories are excluded. Selection is saved to the member profile. Each project row shows its description, stars, forks, update date, and GitHub language breakdown when available.
+
+The picks are stored in the `featuredRepositoryIds` PostgreSQL column. The migration is included in `backend/prisma/migrations`; apply pending migrations with `npm run db:deploy` from `backend/` in every environment before running the updated API. The local setup command above applies it to a local database.
 
 ## Rate limiting and multiple API instances
 
