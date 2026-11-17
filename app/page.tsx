@@ -26,6 +26,75 @@ import IIITGLogo from "../components/IIITGLogo";
 
 
 type Tab = "directory" | "leaderboard" | "linkedin" | "repositories";
+type DirectoryResponse = { items: Member[]; years: number[]; technologies: string[]; total: number };
+
+const DIRECTORY_RETRY_WINDOW_MS = 150_000;
+const DIRECTORY_ATTEMPT_TIMEOUT_MS = 15_000;
+const DIRECTORY_RETRY_DELAY_MS = 3_000;
+
+function waitForRetry(delay: number, signal: AbortSignal): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (signal.aborted) {
+      reject(new DOMException("Request cancelled", "AbortError"));
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      signal.removeEventListener("abort", onAbort);
+      resolve();
+    }, delay);
+    const onAbort = () => {
+      clearTimeout(timer);
+      reject(new DOMException("Request cancelled", "AbortError"));
+    };
+    signal.addEventListener("abort", onAbort, { once: true });
+  });
+}
+
+async function fetchDirectoryWithRetry(
+  url: string,
+  signal: AbortSignal,
+  onRetry: () => void,
+): Promise<DirectoryResponse> {
+  const deadline = Date.now() + DIRECTORY_RETRY_WINDOW_MS;
+  let lastError = new Error("Directory unavailable. Please retry.");
+
+  while (Date.now() < deadline) {
+    if (signal.aborted) throw new DOMException("Request cancelled", "AbortError");
+
+    const attemptController = new AbortController();
+    const abortAttempt = () => attemptController.abort();
+    signal.addEventListener("abort", abortAttempt, { once: true });
+    const timeout = setTimeout(abortAttempt, DIRECTORY_ATTEMPT_TIMEOUT_MS);
+    let shouldRetry = false;
+    let terminalError: Error | null = null;
+
+    try {
+      const response = await fetch(url, { signal: attemptController.signal });
+      if (response.ok) return await response.json() as DirectoryResponse;
+
+      const body = await response.json().catch(() => null) as { error?: string } | null;
+      lastError = new Error(body?.error || "Directory unavailable. Please retry.");
+      shouldRetry = [502, 503, 504].includes(response.status);
+      if (!shouldRetry) terminalError = lastError;
+    } catch (error) {
+      if (signal.aborted) throw error;
+      lastError = error instanceof Error ? error : new Error("Directory unavailable. Please retry.");
+      shouldRetry = true;
+    } finally {
+      clearTimeout(timeout);
+      signal.removeEventListener("abort", abortAttempt);
+    }
+
+    if (terminalError) throw terminalError;
+    if (!shouldRetry || Date.now() >= deadline) throw lastError;
+
+    onRetry();
+    await waitForRetry(Math.min(DIRECTORY_RETRY_DELAY_MS, deadline - Date.now()), signal);
+  }
+
+  throw lastError;
+}
 
 export default function Home() {
   useEffect(()=>{void loadRepositories().catch(()=>{})},[]);
@@ -54,10 +123,11 @@ export default function Home() {
   const [page,setPage]=useState(1);
   const [total,setTotal]=useState(0);
   const [loading,setLoading]=useState(true);
+  const [retrying,setRetrying]=useState(false);
   const [error,setError]=useState("");
   const [ready,setReady]=useState(false);
   useEffect(()=>{const timer=setTimeout(()=>{const tab=new URLSearchParams(location.search).get('tab');if(tab==='linkedin'||tab==='repositories'||tab==='leaderboard')setActiveTab(tab);setReady(true)},0);return()=>clearTimeout(timer)},[]);
-  useEffect(()=>{if(!ready)return;const controller=new AbortController();const timer=setTimeout(()=>{setLoading(true);setError('');const q=new URLSearchParams({paged:'1',limit:'60',page:String(page),sort});if(search.trim())q.set('search',search.trim());if(selectedYear!=='All')q.set('year',String(selectedYear));if(tech)q.set('tech',tech);const selected=[...new Set([...platform,...(activeTab==='linkedin'?['linkedin']:[])])];if(selected.length)q.set('platform',selected.join(','));const url=new URLSearchParams(q);url.delete('paged');url.delete('limit');if(platform.length)url.set('platform',[...new Set(platform)].join(','));else url.delete('platform');url.set('tab',activeTab);history.replaceState(null,'',`?${url}`);fetch(`/api/members?${q}`,{signal:controller.signal}).then(async r=>{const data=await r.json();if(!r.ok)throw Error(data.error||'Directory unavailable');return data}).then(data=>{if(!controller.signal.aborted){setAllMembers(data.items);setYears(data.years);setTechnologies(data.technologies);setTotal(data.total);if(data.total&&page>Math.ceil(data.total/60))setPage(Math.ceil(data.total/60))}}).catch(e=>{if(!controller.signal.aborted)setError(e.message)}).finally(()=>{if(!controller.signal.aborted)setLoading(false)})},300);return()=>{clearTimeout(timer);controller.abort()}},[ready,search,selectedYear,tech,platform,sort,page,activeTab]);
+  useEffect(()=>{if(!ready)return;const controller=new AbortController();const timer=setTimeout(()=>{setLoading(true);setRetrying(false);setError('');const q=new URLSearchParams({paged:'1',limit:'60',page:String(page),sort});if(search.trim())q.set('search',search.trim());if(selectedYear!=='All')q.set('year',String(selectedYear));if(tech)q.set('tech',tech);const selected=[...new Set([...platform,...(activeTab==='linkedin'?['linkedin']:[])])];if(selected.length)q.set('platform',selected.join(','));const url=new URLSearchParams(q);url.delete('paged');url.delete('limit');if(platform.length)url.set('platform',[...new Set(platform)].join(','));else url.delete('platform');url.set('tab',activeTab);history.replaceState(null,'',`?${url}`);fetchDirectoryWithRetry(`/api/members?${q}`,controller.signal,()=>setRetrying(true)).then(data=>{if(!controller.signal.aborted){setAllMembers(data.items);setYears(data.years);setTechnologies(data.technologies);setTotal(data.total);if(data.total&&page>Math.ceil(data.total/60))setPage(Math.ceil(data.total/60))}}).catch(e=>{if(!controller.signal.aborted)setError(e instanceof Error?e.message:'Directory unavailable. Please retry.')}).finally(()=>{if(!controller.signal.aborted){setLoading(false);setRetrying(false)}})},300);return()=>{clearTimeout(timer);controller.abort()}},[ready,search,selectedYear,tech,platform,sort,page,activeTab]);
   const filteredMembers=allMembers;
   const openMember=async(memberId:string)=>{
     const cached=allMembers.find(member=>member.id===memberId);
@@ -189,9 +259,9 @@ export default function Home() {
             />:null}
             <YearFilter members={allMembers} availableYears={years} value={selectedYear} onChange={v=>{setSelectedYear(v);setPage(1)}} />
 
-            {error&&!allMembers.length?<p role="alert" className="mt-6 font-mono text-sm text-[#E0A35B]">{error}</p>:loading&&!allMembers.length?<p role="status" className="mt-6 font-mono text-sm text-[#9AA8C7]">Loading members...</p>:<>
+            {error&&!allMembers.length?<p role="alert" className="mt-6 font-mono text-sm text-[#E0A35B]">{error}</p>:loading&&!allMembers.length?<p role="status" className="mt-6 font-mono text-sm text-[#9AA8C7]">{retrying?"Backend is waking up. Retrying automatically…":"Loading members..."}</p>:<>
             {error&&allMembers.length>0?<p role="alert" className="mt-4 font-mono text-sm text-[#E0A35B]">{error} Showing the last available results.</p>:null}
-            {loading&&allMembers.length>0?<p role="status" className="sr-only">Updating directory results.</p>:null}
+            {loading&&allMembers.length>0?<p role="status" className="sr-only">{retrying?"Backend is waking up. Retrying directory request.":"Updating directory results."}</p>:null}
             {!total&&<p className="mt-8 font-mono text-[#9AA8C7]">No members match these filters.</p>}
             {activeTab==='linkedin'?<section aria-label="LinkedIn directory" className="mt-10 grid gap-6 sm:grid-cols-2 xl:grid-cols-4">{filteredMembers.map(m=><article key={m.id} className="flex gap-4 border border-[#2B3A52] bg-[#1A2233] p-5 font-mono"><Image unoptimized src={m.github?`https://github.com/${encodeURIComponent(m.github)}.png?size=80`:'/favicon.ico'} alt="" width={48} height={48} className="size-12 shrink-0 border border-[#2B3A52]"/><div className="min-w-0"><h2 className="truncate text-base font-semibold">{m.id?<button type="button" onClick={()=>void openMember(m.id!)} className="cursor-pointer text-left transition-colors hover:text-[#8BC5FF]">{m.name}</button>:m.name}</h2><p className="text-sm text-[#9AA8C7]">Batch {m.year}</p><a href={m.linkedin!} target="_blank" rel="noopener noreferrer" className="mt-3 inline-flex min-h-11 items-center border border-[#2B3A52] sm:min-h-0 px-3 py-2 text-sm text-[#8CDEFF] transition-colors hover:border-[#38BDF8] hover:bg-[#102D42] focus-visible:outline-2 focus-visible:outline-[#38BDF8]">Open LinkedIn</a></div></article>)}</section>:<MemberGrid members={filteredMembers} onMemberClick={setSelectedMember} codeforcesRatings={codeforcesRatings}/>}
             <div className="mt-6 flex flex-wrap items-center gap-4 font-mono text-xs text-[#9AA8C7]"><button className={control} disabled={page===1} onClick={()=>setPage(p=>p-1)}>Previous</button><span aria-live="polite">{resultRange(page,60,total)}<span className="ml-3 text-[#6E7F9E]">Page {page} of {Math.max(1,Math.ceil(total/60))}</span></span><button className={control} disabled={page*60>=total} onClick={()=>setPage(p=>p+1)}>Next</button></div></>}
